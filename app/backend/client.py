@@ -188,6 +188,28 @@ class BackendClient:
     async def confirm_appointment(self, phone: str, appointment_id: str) -> None:
         await self._request("POST", f"/api/v1/bot/appointments/{appointment_id}/confirm", json_body={"phone": phone})
 
+    async def get_due_reminders(self) -> list[DueReminder]:
+        reminders_payload = await self._request("GET", "/api/v1/bot/reminders/due")
+        return [DueReminder.model_validate(item) for item in reminders_payload]
+
+    async def mark_reminder_sent(self, reminder_id: str, wa_message_id: str) -> None:
+        await self._request(
+            "POST", f"/api/v1/bot/reminders/{reminder_id}/sent", json_body={"waMessageId": wa_message_id}
+        )
+
+    async def mark_reminder_failed(self, reminder_id: str) -> None:
+        await self._request("POST", f"/api/v1/bot/reminders/{reminder_id}/failed")
+
+    async def send_reminder_response(
+        self, wa_message_id: str, phone: str, response: str
+    ) -> ReminderResponse:
+        response_payload = await self._request(
+            "POST",
+            "/api/v1/bot/reminders/response",
+            json_body={"waMessageId": wa_message_id, "phone": phone, "response": response},
+        )
+        return ReminderResponse.model_validate(response_payload)
+
 
 def _availability_params(specialty_id: str, professional_id: str | None) -> dict[str, str]:
     params = {"specialtyId": specialty_id}

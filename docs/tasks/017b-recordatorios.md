@@ -74,4 +74,40 @@ Requiere la plantilla `recordatorio_cita` aprobada en Meta (`WHATSAPP-SETUP.md` 
 
 ## Resultado
 
+**Archivos creados:** `app/dialog/reminder_reply.py`, `app/reminders/__init__.py`, `app/reminders/job.py`,
+`tests/test_reminders.py`.
+
+**Archivos modificados:** `app/config.py` (WA_REMINDER_TEMPLATE, WA_TEMPLATE_LANGUAGE, REMINDER_INTERVAL_SECONDS,
+REMINDERS_ENABLED), `app/backend/models.py` (DueReminder, ReminderResponse), `app/backend/client.py` (get_due_reminders,
+mark_reminder_sent, mark_reminder_failed, send_reminder_response), `app/dialog/dependencies.py` (mismos métodos en el
+Protocol `Backend`), `app/dialog/models.py` (TemplateMessage), `app/whatsapp/client.py` (payload `template` con cuerpo
+y 3 botones quick_reply), `app/dialog/router.py` (template_button antes del filtro de derivación), `app/messages/dates.py`
+(format_long_date), `app/messages/texts.py` (REMINDER_CONFIRMED_TEXT, REMINDER_TOO_LATE_TEXT), `app/main.py` (tarea
+del bucle en el lifespan, cancelada al apagar), `tests/fakes.py` (recordatorios, fallo configurable en send, outcome
+configurable).
+
+`.venv/bin/pytest -q` →
+23 passed, 1 warning in 0.58s
+
+**Supuestos y problemas:**
+- La fecha de la plantilla es `miércoles 21 de octubre` (el 2026-10-21 es miércoles; el ejemplo de la tarea decía martes).
+- Un `template_button` sin `context_message_id` o con payload desconocido muestra el menú (no hay wamid que reportar).
+- `RESCHEDULE_REQUESTED` sin cita coincidente en `get_appointments` muestra el menú.
+- `TOO_LATE` usa el texto nuevo REMINDER_TOO_LATE_TEXT ("...; recepción le ayuda.") y deriva.
+- El envío reintenta una vez; un fallo de `mark_reminder_sent` también queda aislado por recordatorio (se registra).
+- Log sin teléfono ni nombre: solo id del recordatorio y nombre de la excepción.
+- `.env.example` no incluye las 4 variables nuevas (no estaban en "Archivos a tocar"); los valores por defecto cubren el caso.
+- No se hizo commit.
+
 ## Revisión
+Estado: APROBADO
+
+Correcciones mínimas de Claude:
+1. `reminder_reply.py`: una respuesta a un recordatorio borra `handoff_until`. Sin esto, con una derivación activa,
+   `RESCHEDULE_REQUESTED` mostraba los días y la elección del paciente se descartaba en silencio. `TOO_LATE` vuelve
+   a derivar.
+2. `.env.example`: añadidas `WA_REMINDER_TEMPLATE`, `WA_TEMPLATE_LANGUAGE`, `REMINDER_INTERVAL_SECONDS` y
+   `REMINDERS_ENABLED` (015b: todas las variables de `config.py`).
+
+Aceptados: payload desconocido o sin `context` → menú; cita no encontrada → menú; `REMINDER_TOO_LATE_TEXT`.
+Pendiente: prueba manual con la plantilla aprobada en Meta.

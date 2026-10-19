@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = ""
     llm_timeout_seconds: float = 8.0
+    wa_reminder_template: str = "recordatorio_cita"
+    wa_template_language: str = "es"
+    reminder_interval_seconds: int = 300
+    reminders_enabled: bool = True
 
     model_config = SettingsConfigDict(
         env_file=".env",

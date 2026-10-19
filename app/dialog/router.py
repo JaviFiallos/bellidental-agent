@@ -1,5 +1,5 @@
 from app.backend.models import BackendError
-from app.dialog import appointments, booking, free_text, identify, menu, urgent
+from app.dialog import appointments, booking, free_text, identify, menu, reminder_reply, urgent
 from app.dialog.consent import CONSENT_NO_ID, CONSENT_YES_ID, answer_consent, build_notice, is_accepted
 from app.dialog.dependencies import Backend, Classifier
 from app.dialog.hints import normalize_text
@@ -71,6 +71,10 @@ async def _route(
     backend: Backend,
     classifier: Classifier,
 ) -> list[OutgoingMessage]:
+    # Reminder buttons are always answered, even during handoff or an unfinished flow (017b).
+    if incoming.kind == "template_button":
+        return await reminder_reply.answer_reminder_button(incoming, conversation, backend)
+
     if is_handoff_active(conversation):
         if not _is_menu_request(incoming):
             return []

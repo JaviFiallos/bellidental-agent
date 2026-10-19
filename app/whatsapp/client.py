@@ -1,7 +1,7 @@
 from typing import Any
 import httpx
 
-from app.dialog.models import ButtonsMessage, ListMessage, OutgoingMessage, TextMessage
+from app.dialog.models import ButtonsMessage, ListMessage, OutgoingMessage, TemplateMessage, TextMessage
 
 
 class WhatsAppClient:
@@ -73,6 +73,9 @@ class WhatsAppClient:
                     "sections": sections_payload,
                 },
             }
+        elif isinstance(message, TemplateMessage):
+            base_payload["type"] = "template"
+            base_payload["template"] = _build_template(message)
         else:
             raise ValueError(f"Unsupported message type: {type(message)}")
 
@@ -104,3 +107,28 @@ class WhatsAppClient:
         if not messages or "id" not in messages[0]:
             raise RuntimeError("Invalid response structure from WhatsApp Graph API")
         return str(messages[0]["id"])
+
+
+def _build_template(message: TemplateMessage) -> dict[str, Any]:
+    components: list[dict[str, Any]] = []
+    if message.body_parameters:
+        components.append(
+            {
+                "type": "body",
+                "parameters": [{"type": "text", "text": value} for value in message.body_parameters],
+            }
+        )
+    for index, payload in enumerate(message.button_payloads):
+        components.append(
+            {
+                "type": "button",
+                "sub_type": "quick_reply",
+                "index": str(index),
+                "parameters": [{"type": "payload", "payload": payload}],
+            }
+        )
+    return {
+        "name": message.name,
+        "language": {"code": message.language},
+        "components": components,
+    }

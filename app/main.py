@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 import json
 import logging
 from typing import Any
@@ -14,6 +14,7 @@ from app.dialog.dependencies import Backend, Classifier, Sender
 from app.dialog.store import ConversationStore, ProcessedMessages
 from app.nlu.classifier import DisabledClassifier
 from app.nlu.openai_compatible import OpenAICompatibleClassifier
+from app.reminders import job as reminder_job
 from app.whatsapp.client import WhatsAppClient
 from app.whatsapp.signature import is_valid_signature
 from app.whatsapp.webhook import parse_webhook
@@ -86,7 +87,16 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        reminder_task: asyncio.Task[None] | None = None
+        if app_settings.reminders_enabled:
+            reminder_task = asyncio.create_task(
+                reminder_job.run_forever(app_backend, app_sender, app_settings)
+            )
         yield
+        if reminder_task is not None:
+            reminder_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await reminder_task
         if shared_http_client is not None:
             await shared_http_client.aclose()
         if llm_http_client is not None:

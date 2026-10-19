@@ -7,8 +7,10 @@ from app.backend.models import (
     BotPatient,
     ClinicInfo,
     ConsentStatus,
+    DueReminder,
     Professional,
     PublicPrice,
+    ReminderResponse,
     Slot,
     Specialty,
     UrgentSlots,
@@ -75,6 +77,11 @@ class FakeBackend:
         self.cancel_error: BackendError | None = None
         self.rescheduled: list[dict[str, Any]] = []
         self.cancelled: list[str] = []
+        self.due_reminders: list[DueReminder] = []
+        self.sent_reminders: list[tuple[str, str]] = []
+        self.failed_reminders: list[str] = []
+        self.reminder_outcome = ReminderResponse(outcome="CONFIRMED", appointmentId="appt-1", patientId="pat-1")
+        self.reminder_responses: list[dict[str, str]] = []
 
     async def get_consent(self, phone: str) -> ConsentStatus:
         return self.consent_status
@@ -160,6 +167,19 @@ class FakeBackend:
     async def confirm_appointment(self, phone: str, appointment_id: str) -> None:
         return None
 
+    async def get_due_reminders(self) -> list[DueReminder]:
+        return self.due_reminders
+
+    async def mark_reminder_sent(self, reminder_id: str, wa_message_id: str) -> None:
+        self.sent_reminders.append((reminder_id, wa_message_id))
+
+    async def mark_reminder_failed(self, reminder_id: str) -> None:
+        self.failed_reminders.append(reminder_id)
+
+    async def send_reminder_response(self, wa_message_id: str, phone: str, response: str) -> ReminderResponse:
+        self.reminder_responses.append({"wa_message_id": wa_message_id, "phone": phone, "response": response})
+        return self.reminder_outcome
+
 
 class FakeClassifier:
     """Fake implementation of the Classifier protocol: returns a fixed result and records every call."""
@@ -181,7 +201,12 @@ class FakeSender:
 
     def __init__(self) -> None:
         self.sent: list[tuple[str, OutgoingMessage]] = []
+        self.error: Exception | None = None
+        self.attempts = 0
 
     async def send(self, phone: str, message: OutgoingMessage) -> str:
+        self.attempts += 1
+        if self.error is not None:
+            raise self.error
         self.sent.append((phone, message))
         return f"fake-wamid-{len(self.sent)}"

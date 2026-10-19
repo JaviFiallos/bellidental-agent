@@ -46,6 +46,12 @@ def format_long(value: datetime) -> str:
     return f"{WEEKDAYS[local.weekday()]} {local.day} de {MONTHS[local.month - 1]}, {local.strftime('%H:%M')}"
 
 
+def format_long_date(value: datetime) -> str:
+    """Formats like 'martes 21 de octubre' (no time)."""
+    local = _to_clinic_zone(value)
+    return f"{WEEKDAYS[local.weekday()]} {local.day} de {MONTHS[local.month - 1]}"
+
+
 def format_day(value: date) -> str:
     """Formats like 'mar 21 oct'."""
     return f"{WEEKDAYS_SHORT[value.weekday()]} {value.day} {MONTHS_SHORT[value.month - 1]}"

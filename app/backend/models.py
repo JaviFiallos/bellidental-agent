@@ -88,3 +88,22 @@ class UrgentSlots(BaseModel):
     specialty_id: str = Field(alias="specialtyId")
     no_slots_today: bool = Field(alias="noSlotsToday")
     slots: list[Slot] = Field(default_factory=list)
+
+
+class DueReminder(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    reminder_id: str = Field(alias="reminderId")
+    appointment_id: str = Field(alias="appointmentId")
+    phone: str
+    patient_first_name: str = Field(alias="patientFirstName")
+    professional_name: str = Field(alias="professionalName")
+    start_at: datetime = Field(alias="startAt")
+
+
+class ReminderResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    outcome: str
+    appointment_id: str = Field(alias="appointmentId")
+    patient_id: str = Field(alias="patientId")

@@ -6,7 +6,9 @@ from app.backend.models import (
     BotPatient,
     ClinicInfo,
     ConsentStatus,
+    DueReminder,
     Professional,
+    ReminderResponse,
     Slot,
     Specialty,
     UrgentSlots,
@@ -58,6 +60,16 @@ class Backend(Protocol):
     async def cancel_appointment(self, phone: str, appointment_id: str) -> None: ...
 
     async def confirm_appointment(self, phone: str, appointment_id: str) -> None: ...
+
+    async def send_reminder_response(
+        self, wa_message_id: str, phone: str, response: str
+    ) -> ReminderResponse: ...
+
+    async def get_due_reminders(self) -> list[DueReminder]: ...
+
+    async def mark_reminder_sent(self, reminder_id: str, wa_message_id: str) -> None: ...
+
+    async def mark_reminder_failed(self, reminder_id: str) -> None: ...
 
 
 class Sender(Protocol):

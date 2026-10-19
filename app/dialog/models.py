@@ -79,7 +79,16 @@ class ListMessage(BaseModel):
         return self
 
 
-OutgoingMessage = TextMessage | ButtonsMessage | ListMessage
+class TemplateMessage(BaseModel):
+    """Approved WhatsApp template. Body parameters go in order; button payloads map to quick_reply buttons 0..n."""
+
+    name: str
+    language: str
+    body_parameters: list[str] = Field(default_factory=list)
+    button_payloads: list[str] = Field(default_factory=list)
+
+
+OutgoingMessage = TextMessage | ButtonsMessage | ListMessage | TemplateMessage
 
 
 class Conversation(BaseModel):
