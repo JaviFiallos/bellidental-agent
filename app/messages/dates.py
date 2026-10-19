@@ -28,6 +28,18 @@ def _to_clinic_zone(value: datetime) -> datetime:
     return value.astimezone(ZoneInfo(CLINIC_ZONE))
 
 
+def clinic_today() -> date:
+    return datetime.now(ZoneInfo(CLINIC_ZONE)).date()
+
+
+def clinic_date(value: datetime) -> date:
+    return _to_clinic_zone(value).date()
+
+
+def clinic_hour(value: datetime) -> int:
+    return _to_clinic_zone(value).hour
+
+
 def format_long(value: datetime) -> str:
     """Formats like 'martes 21 de octubre, 10:30'."""
     local = _to_clinic_zone(value)

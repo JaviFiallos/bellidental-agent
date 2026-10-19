@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from app.backend.models import BackendError
 from app.dialog.dependencies import Backend
@@ -38,13 +39,14 @@ async def start_identification(
     conversation: Conversation,
     backend: Backend,
     then: str,
+    carry: dict[str, Any] | None = None,
 ) -> list[OutgoingMessage]:
-    """Identifies the patient by phone (and cédula if needed), then runs the continuation named `then`."""
+    """Identifies the patient, then runs the continuation named `then` with the data in `carry`."""
+    conversation.selection = {"then": then, "carry": carry or {}}
     if conversation.patient_id is not None:
         return await _continuations[then](conversation, backend)
 
     patients = await backend.get_patients(conversation.phone)
-    conversation.selection = {"then": then}
     if not patients:
         return [TextMessage(text=FIRST_APPOINTMENT_TEXT), *await hand_off_from_backend(conversation, backend)]
     if len(patients) == 1:
@@ -125,7 +127,8 @@ async def _set_patient(
     patient_name: str,
 ) -> list[OutgoingMessage]:
     then = str(conversation.selection["then"])
+    carry: dict[str, Any] = conversation.selection.get("carry", {})
     conversation.patient_id = patient_id
     conversation.patient_name = patient_name
-    conversation.selection = {"then": then}
+    conversation.selection = {"then": then, "carry": carry}
     return await _continuations[then](conversation, backend)

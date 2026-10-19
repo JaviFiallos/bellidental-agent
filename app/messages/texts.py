@@ -1,6 +1,6 @@
 """Patient-facing text constants in Spanish."""
 
-from app.backend.models import ClinicInfo
+from app.backend.models import ClinicInfo, PublicPrice
 
 UNSUPPORTED_MESSAGE = "Por ahora solo puedo leer mensajes de texto."
 
@@ -124,3 +124,32 @@ def fit_length(text: str, limit: int) -> str:
     if len(text) <= limit:
         return text
     return text[: limit - 1].rstrip() + "…"
+
+
+URGENT_EMERGENCY_TEXT = (
+    "Si tiene hinchazón que le dificulte respirar o tragar, fiebre alta o un sangrado que no se detiene, "
+    "acuda a emergencias o llame al 911."
+)
+URGENT_SLOTS_TEXT = "Estos son los primeros huecos de urgencia. Elija uno."
+URGENT_SPECIALTY_LABEL = "Urgencia"
+OFF_TOPIC_TEXT = "Solo puedo ayudarle con citas e información de Bellidental."
+
+
+def single_price_text(price: PublicPrice) -> str:
+    return f"{price.name}: ${price.price:.2f}\n\n{PRICES_NOTE}"
+
+
+def urgent_after_hours_text(phone: str) -> str:
+    return f"Fuera de horario puede llamar a la doctora: {phone}"
+
+
+def urgent_no_slots_text(phone: str) -> str:
+    base = "No hay huecos de urgencia hoy ni mañana."
+    if not phone:
+        return base
+    return f"{base} Puede llamar a la doctora: {phone}"
+
+
+def urgent_slot_title(is_today: bool, time_text: str) -> str:
+    day = "Hoy" if is_today else "Mañana"
+    return f"{day} {time_text}"

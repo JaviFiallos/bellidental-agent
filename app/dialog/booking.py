@@ -3,6 +3,7 @@ from datetime import date, datetime
 from app.backend.models import BackendError
 from app.dialog.dependencies import Backend
 from app.dialog.handoff import hand_off_from_backend
+from app.dialog.hints import filter_slots_by_period, matches_text, resolve_date_hint
 from app.dialog.identify import register_continuation, start_identification
 from app.dialog.menu import show_menu
 from app.dialog.models import (
@@ -20,7 +21,7 @@ from app.dialog.models import (
     TextMessage,
 )
 from app.dialog.slot_picker import SLOT_PREFIX, build_day_list, build_slot_list, parse_slot_row_id
-from app.messages.dates import format_day, format_long
+from app.messages.dates import clinic_today, format_day, format_long
 from app.messages.texts import (
     BOOK_CANCEL_TITLE,
     BOOK_CHANGE_TITLE,
@@ -53,9 +54,25 @@ def _list(text: str, rows: list[ListRow]) -> ListMessage:
     return ListMessage(text=text, button_text=LIST_BUTTON_TEXT, sections=[ListSection(rows=rows)])
 
 
-async def start(conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:
-    conversation.selection = {}
-    return await start_identification(conversation, backend, then=BOOK_FLOW)
+async def start(
+    conversation: Conversation,
+    backend: Backend,
+    hints: dict[str, str] | None = None,
+) -> list[OutgoingMessage]:
+    """Starts booking; `hints` (specialty, date, time) come from free text and skip steps when they match."""
+    return await start_identification(conversation, backend, then=BOOK_FLOW, carry={"hints": hints or {}})
+
+
+async def _start_from_identification(conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:
+    hints: dict[str, str] = dict(conversation.selection.get("carry", {}).get("hints", {}))
+    conversation.selection = {"hints": hints}
+    return await show_specialties(conversation, backend)
+
+
+def _take_hint(conversation: Conversation, key: str) -> str | None:
+    """Returns a hint once: it is removed so the same step never repeats the shortcut."""
+    hints: dict[str, str] = conversation.selection.get("hints", {})
+    return hints.pop(key, None)
 
 
 async def cancel_flow(conversation: Conversation) -> list[OutgoingMessage]:
@@ -68,6 +85,11 @@ async def show_specialties(conversation: Conversation, backend: Backend) -> list
     specialties = await backend.get_specialties()
     if not specialties:
         return await hand_off_from_backend(conversation, backend)
+    hinted_name = _take_hint(conversation, "specialty")
+    if hinted_name is not None:
+        matched = next((item for item in specialties if matches_text(hinted_name, item.name)), None)
+        if matched is not None:
+            return await _choose_specialty(conversation, backend, matched.specialty_id, matched.name)
     if len(specialties) == 1:
         return await _choose_specialty(conversation, backend, specialties[0].specialty_id, specialties[0].name)
     conversation.step = Step.BOOK_SPECIALTY
@@ -98,6 +120,10 @@ async def show_days(conversation: Conversation, backend: Backend) -> list[Outgoi
     )
     if not days:
         return [TextMessage(text=BOOK_NO_DAYS_TEXT), *await hand_off_from_backend(conversation, backend)]
+    hinted_day = resolve_date_hint(_take_hint(conversation, "date"), clinic_today(), days)
+    if hinted_day is not None:
+        conversation.selection["date"] = hinted_day.isoformat()
+        return await show_slots(conversation, backend)
     conversation.step = Step.BOOK_DAY
     return [build_day_list(days)]
 
@@ -109,6 +135,8 @@ async def show_slots(conversation: Conversation, backend: Backend) -> list[Outgo
         day,
         professional_id=conversation.selection.get("professional_id"),
     )
+    period = conversation.selection.get("hints", {}).get("time")
+    slots = filter_slots_by_period(slots, period) or slots
     if not slots:
         return [TextMessage(text=BOOK_NO_SLOTS_TEXT), *await show_days(conversation, backend)]
     conversation.selection["professional_names"] = {slot.professional_id: slot.professional_name for slot in slots}
@@ -270,4 +298,4 @@ async def _show_current_step(conversation: Conversation, backend: Backend) -> li
     return await handler(conversation, backend)
 
 
-register_continuation(BOOK_FLOW, show_specialties)
+register_continuation(BOOK_FLOW, _start_from_identification)

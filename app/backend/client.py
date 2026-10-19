@@ -12,6 +12,7 @@ from app.backend.models import (
     Professional,
     Slot,
     Specialty,
+    UrgentSlots,
 )
 
 
@@ -162,6 +163,10 @@ class BackendClient:
         }
         appointment_payload = await self._request("POST", "/api/v1/bot/appointments", json_body=body)
         return Appointment.model_validate(appointment_payload)
+
+    async def get_urgent_slots(self) -> UrgentSlots:
+        urgent_payload = await self._request("GET", "/api/v1/bot/urgent-slots")
+        return UrgentSlots.model_validate(urgent_payload)
 
     async def get_appointments(self, phone: str, patient_id: str) -> list[Appointment]:
         appointments_payload = await self._request(

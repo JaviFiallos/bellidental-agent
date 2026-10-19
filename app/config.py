@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     bot_api_key: str = ""
     clinic_zone: str = "America/Guayaquil"
     conversation_ttl_minutes: int = 30
+    llm_base_url: str = ""
+    llm_api_key: str = ""
+    llm_model: str = ""
+    llm_timeout_seconds: float = 8.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

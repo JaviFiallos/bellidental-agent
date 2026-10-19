@@ -80,3 +80,11 @@ class Appointment(BaseModel):
     professional_name: str = Field(alias="professionalName")
     start_at: datetime = Field(alias="startAt")
     status: str
+
+
+class UrgentSlots(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    specialty_id: str = Field(alias="specialtyId")
+    no_slots_today: bool = Field(alias="noSlotsToday")
+    slots: list[Slot] = Field(default_factory=list)

@@ -9,8 +9,12 @@ from app.backend.models import (
     Professional,
     Slot,
     Specialty,
+    UrgentSlots,
 )
 from app.dialog.models import OutgoingMessage
+from app.nlu.classifier import Classifier
+
+__all__ = ["Backend", "Classifier", "Sender"]
 
 
 class Backend(Protocol):
@@ -44,6 +48,8 @@ class Backend(Protocol):
         professional_id: str,
         start_at: datetime,
     ) -> Appointment: ...
+
+    async def get_urgent_slots(self) -> UrgentSlots: ...
 
     async def get_appointments(self, phone: str, patient_id: str) -> list[Appointment]: ...
 

@@ -1,14 +1,14 @@
-from unicodedata import combining, normalize
-
 from app.backend.models import BackendError
-from app.dialog import appointments, booking, identify, menu
+from app.dialog import appointments, booking, free_text, identify, menu, urgent
 from app.dialog.consent import CONSENT_NO_ID, CONSENT_YES_ID, answer_consent, build_notice, is_accepted
-from app.dialog.dependencies import Backend
+from app.dialog.dependencies import Backend, Classifier
+from app.dialog.hints import normalize_text
 from app.dialog.handoff import is_handoff_active
 from app.dialog.menu import MENU_PREFIX, answer_menu, show_menu
 from app.dialog.models import Conversation, IncomingMessage, OutgoingMessage, Step, TextMessage
 from app.dialog.store import peek_clinic_info
 from app.messages.texts import UNSUPPORTED_MESSAGE, technical_problem_text
+from app.nlu.classifier import DisabledClassifier
 
 MENU_KEYWORD = "menu"
 IDENTIFY_STEPS = frozenset({Step.IDENTIFY_CONFIRM, Step.IDENTIFY_ID})
@@ -31,16 +31,12 @@ APPOINTMENT_STEPS = frozenset(
         Step.CANCEL_CONFIRM,
     }
 )
-FLOW_STEPS = IDENTIFY_STEPS | BOOKING_STEPS | APPOINTMENT_STEPS
-
-
-def _normalize_text(text: str) -> str:
-    decomposed = normalize("NFKD", text.strip().lower())
-    return "".join(char for char in decomposed if not combining(char))
+URGENT_STEPS = frozenset({Step.URGENT_SLOT, Step.URGENT_CONFIRM})
+FLOW_STEPS = IDENTIFY_STEPS | BOOKING_STEPS | APPOINTMENT_STEPS | URGENT_STEPS
 
 
 def _is_menu_text(incoming: IncomingMessage) -> bool:
-    return incoming.text is not None and _normalize_text(incoming.text) == MENU_KEYWORD
+    return incoming.text is not None and normalize_text(incoming.text) == MENU_KEYWORD
 
 
 def _is_menu_request(incoming: IncomingMessage) -> bool:
@@ -53,6 +49,7 @@ async def handle(
     incoming: IncomingMessage,
     conversation: Conversation,
     backend: Backend,
+    classifier: Classifier | None = None,
 ) -> list[OutgoingMessage]:
     """Handles an incoming message, updates conversation state, and returns outgoing messages."""
     # The cédula typed during identification is not conversation text: it stays out of history.
@@ -61,7 +58,7 @@ async def handle(
         conversation.history = conversation.history[-6:]
 
     try:
-        return await _route(incoming, conversation, backend)
+        return await _route(incoming, conversation, backend, classifier or DisabledClassifier())
     except BackendError:
         info = peek_clinic_info(backend)
         reception_whatsapp = info.reception_whatsapp if info is not None else ""
@@ -72,6 +69,7 @@ async def _route(
     incoming: IncomingMessage,
     conversation: Conversation,
     backend: Backend,
+    classifier: Classifier,
 ) -> list[OutgoingMessage]:
     if is_handoff_active(conversation):
         if not _is_menu_request(incoming):
@@ -89,11 +87,11 @@ async def _route(
     if conversation.step in FLOW_STEPS:
         if _is_menu_text(incoming):
             return await booking.cancel_flow(conversation)
-        if conversation.step in IDENTIFY_STEPS:
-            return await identify.answer_identification(incoming, conversation, backend)
-        if conversation.step in BOOKING_STEPS:
-            return await booking.answer_booking(incoming, conversation, backend)
-        return await appointments.answer_appointments(incoming, conversation, backend)
+        if incoming.kind == "text" and conversation.step != Step.IDENTIFY_ID:
+            interrupted = await free_text.interrupt_flow(incoming, conversation, backend, classifier)
+            if interrupted is not None:
+                return interrupted
+        return await _answer_flow(incoming, conversation, backend)
 
     if incoming.reply_id == menu.BOOK_ID:
         return await booking.start(conversation, backend)
@@ -101,4 +99,20 @@ async def _route(
         return await appointments.start(conversation, backend)
     if incoming.reply_id is not None and incoming.reply_id.startswith(MENU_PREFIX):
         return await answer_menu(incoming.reply_id, conversation, backend)
+    if incoming.kind == "text" and not _is_menu_text(incoming):
+        return await free_text.answer_free_text(incoming, conversation, backend, classifier)
     return await show_menu(conversation)
+
+
+async def _answer_flow(
+    incoming: IncomingMessage,
+    conversation: Conversation,
+    backend: Backend,
+) -> list[OutgoingMessage]:
+    if conversation.step in IDENTIFY_STEPS:
+        return await identify.answer_identification(incoming, conversation, backend)
+    if conversation.step in BOOKING_STEPS:
+        return await booking.answer_booking(incoming, conversation, backend)
+    if conversation.step in URGENT_STEPS:
+        return await urgent.answer_urgent(incoming, conversation, backend)
+    return await appointments.answer_appointments(incoming, conversation, backend)

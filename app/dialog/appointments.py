@@ -70,17 +70,25 @@ TOO_LATE_CODE = "BOT_TOO_LATE"
 OVERLAP_CODE = "APPOINTMENT_OVERLAP"
 
 
-async def start(conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:
-    conversation.selection = {}
-    return await start_identification(conversation, backend, then=APPOINTMENTS_FLOW)
+async def start(
+    conversation: Conversation,
+    backend: Backend,
+    action: str | None = None,
+) -> list[OutgoingMessage]:
+    """Opens 'Mis citas'. With `action` (a button id such as RESCHEDULE_ID) and a single appointment, goes straight to it."""
+    return await start_identification(conversation, backend, then=APPOINTMENTS_FLOW, carry={"action": action})
 
 
 async def show_appointments(conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:
+    action: str | None = conversation.selection.get("carry", {}).get("action")
     appointments = await _load_appointments(conversation, backend)
     conversation.selection = {}
     if not appointments:
         conversation.step = Step.IDLE
         return [_no_appointments_message()]
+    if action is not None and len(appointments) == 1:
+        conversation.selection = {"appointment": appointments[0].model_dump(mode="json", by_alias=True)}
+        return await _answer_action(action, conversation, backend)
     conversation.step = Step.APPT_CHOOSE
     rows = [_appointment_row(item) for item in appointments[:MAX_ROWS]]
     return [ListMessage(text=APPOINTMENTS_LIST_TEXT, button_text=LIST_BUTTON_TEXT, sections=[ListSection(rows=rows)])]

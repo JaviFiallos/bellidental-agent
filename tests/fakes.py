@@ -11,8 +11,10 @@ from app.backend.models import (
     PublicPrice,
     Slot,
     Specialty,
+    UrgentSlots,
 )
-from app.dialog.models import OutgoingMessage
+from app.dialog.models import OutgoingMessage, Step
+from app.nlu.models import Interpretation
 
 
 class FakeBackend:
@@ -68,6 +70,7 @@ class FakeBackend:
                 status="PENDING",
             )
         ]
+        self.urgent_slots = UrgentSlots(specialtyId="spec-urgent", noSlotsToday=False, slots=self.slots)
         self.reschedule_error: BackendError | None = None
         self.cancel_error: BackendError | None = None
         self.rescheduled: list[dict[str, Any]] = []
@@ -137,6 +140,9 @@ class FakeBackend:
         )
 
 
+    async def get_urgent_slots(self) -> UrgentSlots:
+        return self.urgent_slots
+
     async def get_appointments(self, phone: str, patient_id: str) -> list[Appointment]:
         return self.appointments
 
@@ -153,6 +159,21 @@ class FakeBackend:
 
     async def confirm_appointment(self, phone: str, appointment_id: str) -> None:
         return None
+
+
+class FakeClassifier:
+    """Fake implementation of the Classifier protocol: returns a fixed result and records every call."""
+
+    def __init__(self) -> None:
+        self.result: Interpretation | None = None
+        self.error: Exception | None = None
+        self.calls: list[tuple[str, Step, list[str]]] = []
+
+    async def classify(self, text: str, step: Step, recent: list[str]) -> Interpretation | None:
+        self.calls.append((text, step, recent))
+        if self.error is not None:
+            raise self.error
+        return self.result
 
 
 class FakeSender:

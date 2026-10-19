@@ -10,8 +10,10 @@ from fastapi.responses import PlainTextResponse
 from app.backend.client import BackendClient
 from app.config import Settings
 from app.dialog import router
-from app.dialog.dependencies import Backend, Sender
+from app.dialog.dependencies import Backend, Classifier, Sender
 from app.dialog.store import ConversationStore, ProcessedMessages
+from app.nlu.classifier import DisabledClassifier
+from app.nlu.openai_compatible import OpenAICompatibleClassifier
 from app.whatsapp.client import WhatsAppClient
 from app.whatsapp.signature import is_valid_signature
 from app.whatsapp.webhook import parse_webhook
@@ -26,12 +28,26 @@ def mask_phone(phone: str) -> str:
     return "****"
 
 
+def build_classifier(settings: Settings, client: httpx.AsyncClient | None) -> Classifier:
+    """Uses the LLM only when LLM_API_KEY is set; otherwise the bot runs with the menu alone."""
+    if not settings.llm_api_key:
+        return DisabledClassifier()
+    return OpenAICompatibleClassifier(
+        base_url=settings.llm_base_url,
+        api_key=settings.llm_api_key,
+        model=settings.llm_model,
+        timeout=settings.llm_timeout_seconds,
+        client=client,
+    )
+
+
 def create_app(
     sender: Sender | None = None,
     backend: Backend | None = None,
     store: ConversationStore | None = None,
     processed_messages: ProcessedMessages | None = None,
     settings: Settings | None = None,
+    classifier: Classifier | None = None,
 ) -> FastAPI:
     """Creates and configures the FastAPI application with injectable dependencies."""
     app_settings = settings or Settings()
@@ -56,6 +72,11 @@ def create_app(
         timeout=10.0,
     )
 
+    llm_http_client: httpx.AsyncClient | None = None
+    if app_settings.llm_api_key:
+        llm_http_client = httpx.AsyncClient(timeout=app_settings.llm_timeout_seconds)
+    app_classifier = classifier or build_classifier(app_settings, llm_http_client)
+
     phone_locks: dict[str, asyncio.Lock] = {}
 
     def get_lock(phone: str) -> asyncio.Lock:
@@ -68,6 +89,8 @@ def create_app(
         yield
         if shared_http_client is not None:
             await shared_http_client.aclose()
+        if llm_http_client is not None:
+            await llm_http_client.aclose()
 
     app = FastAPI(title="Bellidental WhatsApp Agent", lifespan=lifespan)
 
@@ -82,7 +105,9 @@ def create_app(
             async with lock:
                 try:
                     conversation = app_store.get(incoming.phone)
-                    outgoing_messages = await router.handle(incoming, conversation, app_backend)
+                    outgoing_messages = await router.handle(
+                        incoming, conversation, app_backend, app_classifier
+                    )
                     for outgoing in outgoing_messages:
                         await app_sender.send(incoming.phone, outgoing)
                     app_store.save(conversation)
