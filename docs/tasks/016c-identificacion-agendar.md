@@ -82,5 +82,22 @@ Con el backend local y un paciente cuyo teléfono es tu número de prueba:
 2. Repetir en la misma especialidad → mensaje de límite.
 
 ## Resultado
+Correcciones de la Revisión (ronda 1), las 3 aplicadas:
+1. `app/dialog/booking.py`: el filtro elegido en "Profesional" (`professional_id`, `None` = primero disponible) queda separado del profesional del hueco (`slot_professional_id` / `slot_professional_name`). *Cambiar hora* y `APPOINTMENT_OVERLAP` vuelven a listar horas de todos los profesionales si se eligió "Primero disponible". `show_confirm` y `book_appointment` usan el profesional del hueco.
+2. Límites de Meta: `fit_length(text, limit)` en `app/messages/texts.py` (recorta con "…"). Lo usan los títulos de especialidad y profesional (24) y la descripción de hora (72) en `booking.py` y `slot_picker.py`.
+3. `app/dialog/menu.py`: "Mis citas" y "Hablar con recepción" usan `hand_off_from_backend`.
+
+Archivos tocados en esta ronda: `app/dialog/booking.py`, `app/dialog/slot_picker.py`, `app/messages/texts.py`, `app/dialog/menu.py`.
+
+- **Totales pytest**:
+  ```
+  12 passed, 1 warning in 0.52s
+  ```
+- Sin commit.
 
 ## Revisión
+Estado: APROBADO
+
+Ronda 1 (CORRECCIONES: filtro "Primero disponible" separado del profesional del hueco, recorte a los límites de
+Meta con `fit_length`, `hand_off_from_backend` en el menú): aplicadas y verificadas. Aceptados: registro de
+continuaciones (`then`), `Conversation.patient_name`, día sin horas → lista de días.

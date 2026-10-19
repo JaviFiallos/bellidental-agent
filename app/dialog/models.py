@@ -8,6 +8,13 @@ class Step(StrEnum):
     IDLE = "IDLE"
     CONSENT = "CONSENT"
     MENU = "MENU"
+    IDENTIFY_CONFIRM = "IDENTIFY_CONFIRM"
+    IDENTIFY_ID = "IDENTIFY_ID"
+    BOOK_SPECIALTY = "BOOK_SPECIALTY"
+    BOOK_PROFESSIONAL = "BOOK_PROFESSIONAL"
+    BOOK_DAY = "BOOK_DAY"
+    BOOK_SLOT = "BOOK_SLOT"
+    BOOK_CONFIRM = "BOOK_CONFIRM"
 
 
 class IncomingMessage(BaseModel):
@@ -67,6 +74,7 @@ class Conversation(BaseModel):
     step: Step = Step.IDLE
     consent_accepted: bool = False
     patient_id: str | None = None
+    patient_name: str | None = None
     selection: dict[str, Any] = Field(default_factory=dict)
     history: list[str] = Field(default_factory=list)
     handoff_until: datetime | None = None

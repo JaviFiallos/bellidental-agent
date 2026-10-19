@@ -1,7 +1,18 @@
+from datetime import date, datetime
 from typing import Any
+
 import httpx
 
-from app.backend.models import BackendError, BotPatient, ClinicInfo, ConsentStatus
+from app.backend.models import (
+    Appointment,
+    BackendError,
+    BotPatient,
+    ClinicInfo,
+    ConsentStatus,
+    Professional,
+    Slot,
+    Specialty,
+)
 
 
 class BackendClient:
@@ -102,3 +113,57 @@ class BackendClient:
             json_body={"phone": phone, "idNumber": id_number},
         )
         return BotPatient.model_validate(patient_payload)
+
+    async def get_specialties(self) -> list[Specialty]:
+        specialties_payload = await self._request("GET", "/api/v1/bot/specialties")
+        return [Specialty.model_validate(item) for item in specialties_payload]
+
+    async def get_professionals(self, specialty_id: str) -> list[Professional]:
+        professionals_payload = await self._request(
+            "GET", "/api/v1/bot/professionals", params={"specialtyId": specialty_id}
+        )
+        return [Professional.model_validate(item) for item in professionals_payload]
+
+    async def get_available_days(self, specialty_id: str, professional_id: str | None = None) -> list[date]:
+        days_payload = await self._request(
+            "GET",
+            "/api/v1/bot/availability/days",
+            params=_availability_params(specialty_id, professional_id),
+        )
+        return [date.fromisoformat(item) for item in days_payload]
+
+    async def get_slots(
+        self,
+        specialty_id: str,
+        day: date,
+        professional_id: str | None = None,
+    ) -> list[Slot]:
+        params = _availability_params(specialty_id, professional_id)
+        params["date"] = day.isoformat()
+        slots_payload = await self._request("GET", "/api/v1/bot/availability", params=params)
+        return [Slot.model_validate(item) for item in slots_payload]
+
+    async def book_appointment(
+        self,
+        phone: str,
+        patient_id: str,
+        specialty_id: str,
+        professional_id: str,
+        start_at: datetime,
+    ) -> Appointment:
+        body: dict[str, Any] = {
+            "phone": phone,
+            "patientId": patient_id,
+            "specialtyId": specialty_id,
+            "professionalId": professional_id,
+            "startAt": start_at.isoformat(),
+        }
+        appointment_payload = await self._request("POST", "/api/v1/bot/appointments", json_body=body)
+        return Appointment.model_validate(appointment_payload)
+
+
+def _availability_params(specialty_id: str, professional_id: str | None) -> dict[str, str]:
+    params = {"specialtyId": specialty_id}
+    if professional_id is not None:
+        params["professionalId"] = professional_id
+    return params

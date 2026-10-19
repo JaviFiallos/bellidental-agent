@@ -1,5 +1,5 @@
 from app.dialog.dependencies import Backend
-from app.dialog.handoff import hand_off
+from app.dialog.handoff import hand_off, hand_off_from_backend
 from app.dialog.models import (
     Conversation,
     ListMessage,
@@ -67,7 +67,6 @@ async def answer_menu(reply_id: str, conversation: Conversation, backend: Backen
         if info is None:
             return [TextMessage(text=technical_problem_text(""))]
         return [TextMessage(text=prices_text(info)), *await show_menu(conversation)]
-    if reply_id in (BOOK_ID, APPOINTMENTS_ID, HUMAN_ID):
-        info = await load_clinic_info(backend)
-        return hand_off(conversation, info)
+    if reply_id in (APPOINTMENTS_ID, HUMAN_ID):
+        return await hand_off_from_backend(conversation, backend)
     return await show_menu(conversation)

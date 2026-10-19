@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -42,3 +44,39 @@ class BackendError(Exception):
         self.status = status
         self.code = code
         super().__init__(f"Backend returned status {status} (code: {code})")
+
+
+class Specialty(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    specialty_id: str = Field(alias="specialtyId")
+    name: str
+    duration_minutes: int = Field(alias="durationMinutes")
+
+
+class Professional(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    professional_id: str = Field(alias="professionalId")
+    display_name: str = Field(alias="displayName")
+
+
+class Slot(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    professional_id: str = Field(alias="professionalId")
+    professional_name: str = Field(alias="professionalName")
+    start_at: datetime = Field(alias="startAt")
+    end_at: datetime = Field(alias="endAt")
+
+
+class Appointment(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    appointment_id: str = Field(alias="appointmentId")
+    specialty_id: str = Field(alias="specialtyId")
+    specialty_name: str = Field(alias="specialtyName")
+    professional_id: str = Field(alias="professionalId")
+    professional_name: str = Field(alias="professionalName")
+    start_at: datetime = Field(alias="startAt")
+    status: str
