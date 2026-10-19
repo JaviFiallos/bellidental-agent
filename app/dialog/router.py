@@ -1,7 +1,7 @@
 from unicodedata import combining, normalize
 
 from app.backend.models import BackendError
-from app.dialog import booking, identify, menu
+from app.dialog import appointments, booking, identify, menu
 from app.dialog.consent import CONSENT_NO_ID, CONSENT_YES_ID, answer_consent, build_notice, is_accepted
 from app.dialog.dependencies import Backend
 from app.dialog.handoff import is_handoff_active
@@ -21,7 +21,17 @@ BOOKING_STEPS = frozenset(
         Step.BOOK_CONFIRM,
     }
 )
-FLOW_STEPS = IDENTIFY_STEPS | BOOKING_STEPS
+APPOINTMENT_STEPS = frozenset(
+    {
+        Step.APPT_CHOOSE,
+        Step.APPT_ACTION,
+        Step.RESCHEDULE_DAY,
+        Step.RESCHEDULE_SLOT,
+        Step.RESCHEDULE_CONFIRM,
+        Step.CANCEL_CONFIRM,
+    }
+)
+FLOW_STEPS = IDENTIFY_STEPS | BOOKING_STEPS | APPOINTMENT_STEPS
 
 
 def _normalize_text(text: str) -> str:
@@ -81,10 +91,14 @@ async def _route(
             return await booking.cancel_flow(conversation)
         if conversation.step in IDENTIFY_STEPS:
             return await identify.answer_identification(incoming, conversation, backend)
-        return await booking.answer_booking(incoming, conversation, backend)
+        if conversation.step in BOOKING_STEPS:
+            return await booking.answer_booking(incoming, conversation, backend)
+        return await appointments.answer_appointments(incoming, conversation, backend)
 
     if incoming.reply_id == menu.BOOK_ID:
         return await booking.start(conversation, backend)
+    if incoming.reply_id == menu.APPOINTMENTS_ID:
+        return await appointments.start(conversation, backend)
     if incoming.reply_id is not None and incoming.reply_id.startswith(MENU_PREFIX):
         return await answer_menu(incoming.reply_id, conversation, backend)
     return await show_menu(conversation)

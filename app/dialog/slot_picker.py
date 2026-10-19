@@ -1,14 +1,12 @@
 from datetime import date, datetime
 
 from app.backend.models import Slot
-from app.dialog.models import ListMessage, ListRow, ListSection
+from app.dialog.models import MAX_ROW_DESCRIPTION, MAX_ROWS, ListMessage, ListRow, ListSection
 from app.messages.dates import format_day, format_time
 from app.messages.texts import BOOK_DAY_TEXT, BOOK_SLOT_TEXT, LIST_BUTTON_TEXT, fit_length
 
 DAY_PREFIX = "day:"
 SLOT_PREFIX = "slot:"
-MAX_ROWS = 10
-MAX_ROW_DESCRIPTION = 72
 
 
 def build_day_list(days: list[date]) -> ListMessage:

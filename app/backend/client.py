@@ -47,6 +47,8 @@ class BackendClient:
                 pass
             raise BackendError(status=response.status_code, code=code)
 
+        if not response.content:
+            return None
         response_body = response.json()
         if isinstance(response_body, dict) and "data" in response_body:
             return response_body["data"]
@@ -160,6 +162,26 @@ class BackendClient:
         }
         appointment_payload = await self._request("POST", "/api/v1/bot/appointments", json_body=body)
         return Appointment.model_validate(appointment_payload)
+
+    async def get_appointments(self, phone: str, patient_id: str) -> list[Appointment]:
+        appointments_payload = await self._request(
+            "GET", "/api/v1/bot/appointments", params={"phone": phone, "patientId": patient_id}
+        )
+        return [Appointment.model_validate(item) for item in appointments_payload]
+
+    async def reschedule_appointment(self, phone: str, appointment_id: str, start_at: datetime) -> Appointment:
+        appointment_payload = await self._request(
+            "POST",
+            f"/api/v1/bot/appointments/{appointment_id}/reschedule",
+            json_body={"phone": phone, "startAt": start_at.isoformat()},
+        )
+        return Appointment.model_validate(appointment_payload)
+
+    async def cancel_appointment(self, phone: str, appointment_id: str) -> None:
+        await self._request("POST", f"/api/v1/bot/appointments/{appointment_id}/cancel", json_body={"phone": phone})
+
+    async def confirm_appointment(self, phone: str, appointment_id: str) -> None:
+        await self._request("POST", f"/api/v1/bot/appointments/{appointment_id}/confirm", json_body={"phone": phone})
 
 
 def _availability_params(specialty_id: str, professional_id: str | None) -> dict[str, str]:

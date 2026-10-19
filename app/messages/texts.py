@@ -82,6 +82,31 @@ BOOK_CHANGE_TITLE = "Cambiar hora"
 BOOK_CANCEL_TITLE = "Cancelar"
 
 
+APPOINTMENTS_LIST_TEXT = "Estas son sus citas próximas. Elija una."
+NO_APPOINTMENTS_TEXT = "No tiene citas próximas."
+APPOINTMENTS_BOOK_TITLE = "Agendar"
+APPOINTMENTS_HOME_TITLE = "Menú"
+RESCHEDULE_TITLE = "Reprogramar"
+APPOINTMENT_CANCEL_TITLE = "Cancelar cita"
+CANCEL_YES_TITLE = "Sí, cancelar"
+CANCEL_NO_TITLE = "No"
+APPOINTMENT_CANCELLED_TEXT = "Su cita fue cancelada."
+APPOINTMENT_CONFIRMED_TEXT = "Gracias, su cita queda confirmada."
+APPOINTMENT_TOO_LATE_TEXT = "Faltan menos de 2 horas para su cita; para cambios, recepción le ayuda."
+
+
+def cancel_ask_text(when: str) -> str:
+    return f"¿Seguro que desea cancelar la cita del {when}?"
+
+
+def reschedule_summary_text(old_when: str, new_when: str) -> str:
+    return f"De {old_when} a {new_when}"
+
+
+def reschedule_success_text(when: str) -> str:
+    return f"Su cita quedó para {when}."
+
+
 def identify_confirm_text(patient_name: str) -> str:
     return f"¿La cita es para {patient_name}?"
 

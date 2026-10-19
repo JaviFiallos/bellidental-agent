@@ -6,6 +6,8 @@ from app.dialog.handoff import hand_off_from_backend
 from app.dialog.identify import register_continuation, start_identification
 from app.dialog.menu import show_menu
 from app.dialog.models import (
+    MAX_ROW_TITLE,
+    MAX_ROWS,
     ButtonAction,
     ButtonsMessage,
     Conversation,
@@ -44,9 +46,7 @@ DAY_PREFIX = "day:"
 CONFIRM_ID = "book:confirm"
 CHANGE_ID = "book:change"
 CANCEL_ID = "book:cancel"
-MAX_ROWS = 10
 MAX_PROFESSIONAL_ROWS = 9
-MAX_ROW_TITLE = 24
 
 
 def _list(text: str, rows: list[ListRow]) -> ListMessage:

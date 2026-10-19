@@ -57,6 +57,21 @@ class FakeBackend:
         ]
         self.book_error: BackendError | None = None
         self.booked: list[dict[str, Any]] = []
+        self.appointments: list[Appointment] = [
+            Appointment(
+                appointmentId="appt-1",
+                specialtyId="spec-1",
+                specialtyName="Odontología general",
+                professionalId="prof-1",
+                professionalName="Odontóloga Principal",
+                startAt=datetime.fromisoformat("2026-10-21T10:30:00-05:00"),
+                status="PENDING",
+            )
+        ]
+        self.reschedule_error: BackendError | None = None
+        self.cancel_error: BackendError | None = None
+        self.rescheduled: list[dict[str, Any]] = []
+        self.cancelled: list[str] = []
 
     async def get_consent(self, phone: str) -> ConsentStatus:
         return self.consent_status
@@ -120,6 +135,24 @@ class FakeBackend:
             startAt=start_at,
             status="CONFIRMED",
         )
+
+
+    async def get_appointments(self, phone: str, patient_id: str) -> list[Appointment]:
+        return self.appointments
+
+    async def reschedule_appointment(self, phone: str, appointment_id: str, start_at: datetime) -> Appointment:
+        if self.reschedule_error is not None:
+            raise self.reschedule_error
+        self.rescheduled.append({"phone": phone, "appointment_id": appointment_id, "start_at": start_at})
+        return self.appointments[0]
+
+    async def cancel_appointment(self, phone: str, appointment_id: str) -> None:
+        if self.cancel_error is not None:
+            raise self.cancel_error
+        self.cancelled.append(appointment_id)
+
+    async def confirm_appointment(self, phone: str, appointment_id: str) -> None:
+        return None
 
 
 class FakeSender:

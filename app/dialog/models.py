@@ -4,6 +4,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, model_validator
 
 
+MAX_ROWS = 10
+MAX_ROW_TITLE = 24
+MAX_ROW_DESCRIPTION = 72
+
+
 class Step(StrEnum):
     IDLE = "IDLE"
     CONSENT = "CONSENT"
@@ -15,6 +20,12 @@ class Step(StrEnum):
     BOOK_DAY = "BOOK_DAY"
     BOOK_SLOT = "BOOK_SLOT"
     BOOK_CONFIRM = "BOOK_CONFIRM"
+    APPT_CHOOSE = "APPT_CHOOSE"
+    APPT_ACTION = "APPT_ACTION"
+    RESCHEDULE_DAY = "RESCHEDULE_DAY"
+    RESCHEDULE_SLOT = "RESCHEDULE_SLOT"
+    RESCHEDULE_CONFIRM = "RESCHEDULE_CONFIRM"
+    CANCEL_CONFIRM = "CANCEL_CONFIRM"
 
 
 class IncomingMessage(BaseModel):
@@ -42,8 +53,8 @@ class ButtonsMessage(BaseModel):
 
 class ListRow(BaseModel):
     id: str
-    title: str = Field(max_length=24)
-    description: str | None = Field(default=None, max_length=72)
+    title: str = Field(max_length=MAX_ROW_TITLE)
+    description: str | None = Field(default=None, max_length=MAX_ROW_DESCRIPTION)
 
 
 class ListSection(BaseModel):

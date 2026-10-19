@@ -42,3 +42,8 @@ def format_day(value: date) -> str:
 def format_time(value: datetime) -> str:
     """Formats like '10:30'."""
     return _to_clinic_zone(value).strftime("%H:%M")
+
+
+def format_day_time(value: datetime) -> str:
+    """Formats like 'mar 21 oct 10:30'."""
+    return f"{format_day(_to_clinic_zone(value).date())} {format_time(value)}"

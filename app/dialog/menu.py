@@ -67,6 +67,6 @@ async def answer_menu(reply_id: str, conversation: Conversation, backend: Backen
         if info is None:
             return [TextMessage(text=technical_problem_text(""))]
         return [TextMessage(text=prices_text(info)), *await show_menu(conversation)]
-    if reply_id in (APPOINTMENTS_ID, HUMAN_ID):
+    if reply_id == HUMAN_ID:
         return await hand_off_from_backend(conversation, backend)
     return await show_menu(conversation)

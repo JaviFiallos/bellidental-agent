@@ -60,5 +60,30 @@ Con una cita agendada por el bot:
 2. Cancelar la nueva: queda `CANCELLED`.
 
 ## Resultado
+Correcciones de la Revisión (ronda 1), las 2 aplicadas:
+1. `app/backend/client.py` (`_unwrap`): si la respuesta 2xx no tiene cuerpo (`response.content` vacío), devuelve
+   `None` en vez de llamar a `response.json()`. Así `cancel` y `confirm` no fallan tras haber escrito.
+2. Límites de fila definidos una vez en `app/dialog/models.py` (`MAX_ROWS = 10`, `MAX_ROW_TITLE = 24`,
+   `MAX_ROW_DESCRIPTION = 72`), usados también en los `Field` de `ListRow`. Se borran las copias de `booking.py`,
+   `slot_picker.py` y `appointments.py`, que ahora importan de ahí. `MAX_PROFESSIONAL_ROWS = 9` sigue local a
+   `booking.py`.
+
+Archivos tocados en esta ronda: `app/backend/client.py`, `app/dialog/models.py`, `app/dialog/booking.py`,
+`app/dialog/slot_picker.py`, `app/dialog/appointments.py`.
+
+Ronda 0 (ya revisada): `app/backend/client.py`, `app/backend/models.py` (sin cambios), `app/dialog/dependencies.py`,
+`app/dialog/models.py`, `app/dialog/router.py`, `app/dialog/menu.py`, `app/dialog/appointments.py` (nuevo),
+`app/messages/texts.py`, `app/messages/dates.py` (`format_day_time`), `tests/fakes.py`,
+`tests/test_appointments.py` (nuevo, 3 tests).
+
+- **Totales pytest**:
+  ```
+  15 passed, 1 warning in 0.55s
+  ```
+- Sin commit.
 
 ## Revisión
+Estado: APROBADO
+
+Ronda 1 (CORRECCIONES: 2xx sin cuerpo → `None`, límites de fila centralizados en `dialog/models.py`): aplicadas y
+verificadas. Pendiente para la prueba manual: confirmar con el backend real la respuesta de `cancel`/`confirm`.
