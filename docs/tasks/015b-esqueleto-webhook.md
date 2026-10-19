@@ -106,5 +106,22 @@ tests/
 3. Enviar "hola" desde tu número registrado: llega el texto de bienvenida.
 
 ## Resultado
+- **Correcciones aplicadas según Revisión**:
+  - `app/main.py`: Se reemplazó `logger.exception` por `logger.error("Error processing message for phone %s: %s", masked_phone, type(exc).__name__)` sin volcado de traceback para garantizar privacidad. Se añadió manejo de ciclo de vida con `lifespan` cerrando el `httpx.AsyncClient` compartido. Se actualizó la verificación en `GET /webhook` para exigir que `app_settings.wa_verify_token` no esté vacío.
+  - `app/backend/client.py`: Se capturan `httpx.TimeoutException` y `httpx.TransportError` en `_request` lanzando `BackendError(status=0, code=None)`. Se renombró `_unwrap_data` a `_unwrap`, `json_data` a `json_body` y variables `data` a nombres semánticos (`consent_payload`, `clinic_payload`, etc.).
+  - `app/whatsapp/client.py`: Se añadió parámetro `timeout: float = 10.0` en `WhatsAppClient`. Se renombraron variables abreviadas (`sec_dict` -> `section_payload`, `rows_data` -> `row_payloads`, `sections_data` -> `sections_payload`, `data` -> `response_body`).
+  - `app/whatsapp/webhook.py`: Se reemplazaron nombres abreviados (`raw_msg` -> `raw_message`, `msg_id` -> `message_id`, `context_msg_id` -> `context_message_id`, `msg_type` -> `message_type`, `btn` -> `button`).
+  - `app/dialog/models.py`: Se actualizó `Step(str, Enum)` a `Step(StrEnum)` usando `from enum import StrEnum`.
+- **Totales pytest**:
+  ```
+  4 passed, 1 warning in 0.78s
+  ```
+- **Problemas encontrados y supuestos tomados**:
+  - Ninguno. Los 4 tests existentes pasaron exitosamente sin agregar tests adicionales.
 
 ## Revisión
+Estado: APROBADO
+
+Ronda 1 (CORRECCIONES: privacidad en logs, timeout → `BackendError`, `AsyncClient` compartido con `lifespan`,
+verify token vacío, nombres, `StrEnum`): aplicadas y verificadas. Pendiente sin bloquear: `phone_locks` y
+conversaciones caducadas no se purgan (volumen de una clínica, aceptable).

@@ -1,0 +1,113 @@
+from typing import Any
+import httpx
+
+from app.backend.models import BotPatient, ClinicInfo, ConsentStatus
+
+
+class BackendError(Exception):
+    """Exception raised when a backend request returns an error HTTP status."""
+
+    def __init__(self, status: int, code: str | None = None) -> None:
+        self.status = status
+        self.code = code
+        super().__init__(f"Backend returned status {status} (code: {code})")
+
+
+class BackendClient:
+    """Async HTTP client for Bellidental internal backend bot API (/api/v1/bot/*)."""
+
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        client: httpx.AsyncClient | None = None,
+        timeout: float = 10.0,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.timeout = timeout
+        self._client = client
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "X-Bot-Key": self.api_key,
+            "Content-Type": "application/json",
+        }
+
+    def _unwrap(self, response: httpx.Response) -> Any:
+        if response.is_error:
+            code: str | None = None
+            try:
+                body = response.json()
+                if isinstance(body, dict):
+                    code = body.get("code")
+            except Exception:
+                pass
+            raise BackendError(status=response.status_code, code=code)
+
+        response_body = response.json()
+        if isinstance(response_body, dict) and "data" in response_body:
+            return response_body["data"]
+        return response_body
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
+    ) -> Any:
+        url = f"{self.base_url}{path}"
+        headers = self._headers()
+
+        try:
+            if self._client is not None:
+                response = await self._client.request(
+                    method,
+                    url,
+                    params=params,
+                    json=json_body,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
+            else:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    response = await client.request(
+                        method,
+                        url,
+                        params=params,
+                        json=json_body,
+                        headers=headers,
+                        timeout=self.timeout,
+                    )
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            raise BackendError(status=0, code=None) from exc
+
+        return self._unwrap(response)
+
+    async def get_consent(self, phone: str) -> ConsentStatus:
+        consent_payload = await self._request("GET", "/api/v1/bot/consents", params={"phone": phone})
+        return ConsentStatus.model_validate(consent_payload)
+
+    async def accept_consent(self, phone: str, patient_id: str | None = None) -> ConsentStatus:
+        body: dict[str, Any] = {"phone": phone}
+        if patient_id is not None:
+            body["patientId"] = patient_id
+        consent_payload = await self._request("POST", "/api/v1/bot/consents", json_body=body)
+        return ConsentStatus.model_validate(consent_payload)
+
+    async def get_info(self) -> ClinicInfo:
+        clinic_payload = await self._request("GET", "/api/v1/bot/info")
+        return ClinicInfo.model_validate(clinic_payload)
+
+    async def get_patients(self, phone: str) -> list[BotPatient]:
+        patients_payload = await self._request("GET", "/api/v1/bot/patients", params={"phone": phone})
+        return [BotPatient.model_validate(item) for item in patients_payload]
+
+    async def verify_patient(self, phone: str, id_number: str) -> BotPatient:
+        patient_payload = await self._request(
+            "POST",
+            "/api/v1/bot/patients/verify",
+            json_body={"phone": phone, "idNumber": id_number},
+        )
+        return BotPatient.model_validate(patient_payload)
