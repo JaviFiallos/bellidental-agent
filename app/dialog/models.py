@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field, model_validator
 
 class Step(StrEnum):
     IDLE = "IDLE"
+    CONSENT = "CONSENT"
+    MENU = "MENU"
 
 
 class IncomingMessage(BaseModel):

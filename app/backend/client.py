@@ -1,16 +1,7 @@
 from typing import Any
 import httpx
 
-from app.backend.models import BotPatient, ClinicInfo, ConsentStatus
-
-
-class BackendError(Exception):
-    """Exception raised when a backend request returns an error HTTP status."""
-
-    def __init__(self, status: int, code: str | None = None) -> None:
-        self.status = status
-        self.code = code
-        super().__init__(f"Backend returned status {status} (code: {code})")
+from app.backend.models import BackendError, BotPatient, ClinicInfo, ConsentStatus
 
 
 class BackendClient:

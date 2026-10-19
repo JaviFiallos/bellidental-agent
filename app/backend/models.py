@@ -33,3 +33,12 @@ class BotPatient(BaseModel):
 
     patient_id: str = Field(alias="patientId")
     display_name: str = Field(alias="displayName")
+
+
+class BackendError(Exception):
+    """Exception raised when a backend request returns an error HTTP status."""
+
+    def __init__(self, status: int, code: str | None = None) -> None:
+        self.status = status
+        self.code = code
+        super().__init__(f"Backend returned status {status} (code: {code})")

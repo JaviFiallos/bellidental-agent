@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.dialog.store import ConversationStore, ProcessedMessages
 from app.main import create_app
-from app.messages.texts import WELCOME_PLACEHOLDER
+from app.messages.texts import MENU_TEXT
 from app.whatsapp.webhook import parse_webhook
 from tests.fakes import FakeBackend, FakeSender
 
@@ -68,7 +68,7 @@ def test_webhook_valid_signature_replies_to_text() -> None:
     assert len(sender.sent) == 1
     phone, msg = sender.sent[0]
     assert phone == "593987654321"
-    assert getattr(msg, "text", "") == WELCOME_PLACEHOLDER
+    assert getattr(msg, "text", "") == MENU_TEXT
 
 
 def test_webhook_invalid_signature_returns_401_and_sends_nothing() -> None:
@@ -94,6 +94,7 @@ def test_webhook_duplicate_message_id_processed_once() -> None:
     secret = "secret-dedup"
     app = create_app(
         sender=sender,
+        backend=FakeBackend(),
         store=ConversationStore(),
         processed_messages=ProcessedMessages(),
         settings=Settings(wa_app_secret=secret),

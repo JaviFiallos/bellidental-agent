@@ -79,5 +79,25 @@ Con el número de prueba, desde un número sin consentimiento:
 4. *Hablar con recepción* → enlace. Después, "hola" no recibe respuesta y "menú" vuelve a mostrar el menú.
 
 ## Resultado
+Correcciones de la Revisión (ronda 1), las 6 aplicadas:
+1. `tests/test_webhook.py`: el test 1 espera `MENU_TEXT` (FakeBackend ya tiene consentimiento); el de duplicados pasa `backend=FakeBackend()`. `WELCOME_PLACEHOLDER` borrado de `app/messages/texts.py`. Los 4 tests se conservan.
+2. `app/dialog/router.py`: orden derivación activa → consentimiento → `unsupported` → botones/lista → texto libre.
+3. `BackendError` movido a `app/backend/models.py` (re-exportado desde `app/backend/client.py`) para que `dialog/` lo capture sin importar httpx. `router.handle` lo atrapa y responde `technical_problem_text` con el `receptionWhatsapp` en caché (`peek_clinic_info` en `app/dialog/store.py`).
+4. `ClinicInfoCache.get`: si el refresco falla devuelve el valor anterior (aunque esté vencido).
+5. `derivar` renombrado a `hand_off` (`app/dialog/handoff.py`, uso en `app/dialog/menu.py`).
+6. Precios: texto y después el menú (`app/dialog/menu.py`); `tests/test_menu.py` ajusta la aserción de 1 a 2 mensajes.
+
+Archivos tocados en esta ronda: `app/backend/models.py`, `app/backend/client.py`, `app/dialog/router.py`, `app/dialog/store.py`, `app/dialog/handoff.py`, `app/dialog/menu.py`, `app/messages/texts.py`, `tests/test_webhook.py`, `tests/test_menu.py`.
+
+- **Totales pytest**:
+  ```
+  8 passed, 1 warning in 0.51s
+  ```
+- Problemas y supuestos: ninguno pendiente. No se hizo commit.
 
 ## Revisión
+Estado: APROBADO
+
+Ronda 1 (CORRECCIONES: tests 015b, orden del router, `BackendError` → texto técnico, caché vencida como respaldo,
+`hand_off`, menú tras precios): aplicadas y verificadas. `BackendError` movido a `backend/models.py` para que
+`dialog/` no importe httpx: correcto.
