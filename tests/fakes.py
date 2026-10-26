@@ -38,7 +38,7 @@ class FakeBackend:
         ]
         self.id_numbers: dict[str, BotPatient] = {}
         self.specialties: list[Specialty] = [
-            Specialty(specialtyId="spec-1", name="Odontología general", durationMinutes=30)
+            Specialty.model_validate({"specialtyId": 1, "name": "Odontología general", "durationMinutes": 30})
         ]
         self.professionals: list[Professional] = [
             Professional(professionalId="prof-1", displayName="Odontóloga Principal"),
@@ -59,20 +59,25 @@ class FakeBackend:
                 endAt=datetime.fromisoformat("2026-10-21T11:30:00-05:00"),
             ),
         ]
+        self.specialties_error: Exception | None = None
         self.book_error: BackendError | None = None
         self.booked: list[dict[str, Any]] = []
         self.appointments: list[Appointment] = [
-            Appointment(
-                appointmentId="appt-1",
-                specialtyId="spec-1",
-                specialtyName="Odontología general",
-                professionalId="prof-1",
-                professionalName="Odontóloga Principal",
-                startAt=datetime.fromisoformat("2026-10-21T10:30:00-05:00"),
-                status="PENDING",
+            Appointment.model_validate(
+                {
+                    "appointmentId": "appt-1",
+                    "specialtyId": 1,
+                    "specialtyName": "Odontología general",
+                    "professionalId": "prof-1",
+                    "professionalName": "Odontóloga Principal",
+                    "startAt": "2026-10-21T10:30:00-05:00",
+                    "status": "PENDING",
+                }
             )
         ]
-        self.urgent_slots = UrgentSlots(specialtyId="spec-urgent", noSlotsToday=False, slots=self.slots)
+        self.urgent_slots = UrgentSlots.model_validate(
+            {"specialtyId": 99, "noSlotsToday": False, "slots": self.slots}
+        )
         self.reschedule_error: BackendError | None = None
         self.cancel_error: BackendError | None = None
         self.rescheduled: list[dict[str, Any]] = []
@@ -101,6 +106,8 @@ class FakeBackend:
         return self.id_numbers[id_number]
 
     async def get_specialties(self) -> list[Specialty]:
+        if self.specialties_error is not None:
+            raise self.specialties_error
         return self.specialties
 
     async def get_professionals(self, specialty_id: str) -> list[Professional]:

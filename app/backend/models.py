@@ -31,7 +31,7 @@ class ClinicInfo(BaseModel):
 
 
 class BotPatient(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, coerce_numbers_to_str=True)
 
     patient_id: str = Field(alias="patientId")
     display_name: str = Field(alias="displayName")
@@ -47,7 +47,7 @@ class BackendError(Exception):
 
 
 class Specialty(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, coerce_numbers_to_str=True)
 
     specialty_id: str = Field(alias="specialtyId")
     name: str
@@ -55,14 +55,14 @@ class Specialty(BaseModel):
 
 
 class Professional(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, coerce_numbers_to_str=True)
 
     professional_id: str = Field(alias="professionalId")
     display_name: str = Field(alias="displayName")
 
 
 class Slot(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, coerce_numbers_to_str=True)
 
     professional_id: str = Field(alias="professionalId")
     professional_name: str = Field(alias="professionalName")
@@ -71,7 +71,7 @@ class Slot(BaseModel):
 
 
 class Appointment(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, coerce_numbers_to_str=True)
 
     appointment_id: str = Field(alias="appointmentId")
     specialty_id: str = Field(alias="specialtyId")
@@ -83,7 +83,7 @@ class Appointment(BaseModel):
 
 
 class UrgentSlots(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, coerce_numbers_to_str=True)
 
     specialty_id: str = Field(alias="specialtyId")
     no_slots_today: bool = Field(alias="noSlotsToday")
@@ -91,7 +91,7 @@ class UrgentSlots(BaseModel):
 
 
 class DueReminder(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, coerce_numbers_to_str=True)
 
     reminder_id: str = Field(alias="reminderId")
     appointment_id: str = Field(alias="appointmentId")
@@ -102,7 +102,7 @@ class DueReminder(BaseModel):
 
 
 class ReminderResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, coerce_numbers_to_str=True)
 
     outcome: str
     appointment_id: str = Field(alias="appointmentId")

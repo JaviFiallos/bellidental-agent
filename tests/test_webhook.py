@@ -1,12 +1,13 @@
+import asyncio
 import hashlib
 import hmac
 import json
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.dialog.store import ConversationStore, ProcessedMessages
+from app.dialog.store import ConversationStore, ProcessedMessages, load_clinic_info
 from app.main import create_app
-from app.messages.texts import MENU_TEXT
+from app.messages.texts import MENU_TEXT, technical_problem_text
 from app.whatsapp.webhook import parse_webhook
 from tests.fakes import FakeBackend, FakeSender
 
@@ -197,3 +198,101 @@ def test_parse_webhook_button_list_and_template_replies_set_reply_id() -> None:
     assert messages[2].kind == "template_button"
     assert messages[2].reply_id == "TEMPLATE_CONFIRM"
     assert messages[2].context_message_id == "context.tmpl"
+
+
+def test_webhook_handler_error_discards_conversation_and_notifies() -> None:
+    sender = FakeSender()
+    backend = FakeBackend()
+    backend.specialties_error = RuntimeError("Database connection failed")
+    store = ConversationStore()
+    phone = "593987654321"
+
+    conversation = store.get(phone)
+    conversation.patient_id = "pat-1"
+    store.save(conversation)
+
+    asyncio.run(load_clinic_info(backend))
+
+    secret = "secret-error"
+    settings = Settings(wa_app_secret=secret)
+    app = create_app(
+        sender=sender,
+        backend=backend,
+        store=store,
+        settings=settings,
+    )
+    client = TestClient(app)
+
+    book_payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "entry-1",
+                "changes": [
+                    {
+                        "field": "messages",
+                        "value": {
+                            "messages": [
+                                {
+                                    "from": phone,
+                                    "id": "wamid.book.01",
+                                    "type": "interactive",
+                                    "interactive": {
+                                        "type": "button_reply",
+                                        "button_reply": {"id": "menu:book", "title": "Agendar cita"},
+                                    },
+                                }
+                            ]
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    raw_book = json.dumps(book_payload).encode("utf-8")
+    resp1 = client.post(
+        "/webhook",
+        content=raw_book,
+        headers={"X-Hub-Signature-256": _sign(raw_book, secret), "Content-Type": "application/json"},
+    )
+    assert resp1.status_code == 200
+    assert len(sender.sent) == 1
+    phone_sent, error_msg = sender.sent[0]
+    assert phone_sent == phone
+    assert getattr(error_msg, "text", "") == technical_problem_text("593987654321")
+    assert store.get(phone).patient_id is None
+
+    hello_payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "entry-2",
+                "changes": [
+                    {
+                        "field": "messages",
+                        "value": {
+                            "messages": [
+                                {
+                                    "from": phone,
+                                    "id": "wamid.hello.02",
+                                    "type": "text",
+                                    "text": {"body": "hola"},
+                                }
+                            ]
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    raw_hello = json.dumps(hello_payload).encode("utf-8")
+    resp2 = client.post(
+        "/webhook",
+        content=raw_hello,
+        headers={"X-Hub-Signature-256": _sign(raw_hello, secret), "Content-Type": "application/json"},
+    )
+    assert resp2.status_code == 200
+    assert len(sender.sent) == 2
+    phone_sent2, menu_msg = sender.sent[1]
+    assert phone_sent2 == phone
+    assert getattr(menu_msg, "text", "") == MENU_TEXT
