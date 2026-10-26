@@ -11,7 +11,9 @@ from app.backend.client import BackendClient
 from app.config import Settings
 from app.dialog import router
 from app.dialog.dependencies import Backend, Classifier, Sender
-from app.dialog.store import ConversationStore, ProcessedMessages
+from app.dialog.models import TextMessage
+from app.dialog.store import ConversationStore, ProcessedMessages, peek_clinic_info
+from app.messages.texts import technical_problem_text
 from app.nlu.classifier import DisabledClassifier
 from app.nlu.openai_compatible import OpenAICompatibleClassifier
 from app.reminders import job as reminder_job
@@ -128,6 +130,20 @@ def create_app(
                         masked_phone,
                         type(exc).__name__,
                     )
+                    app_store.discard(incoming.phone)
+                    try:
+                        info = peek_clinic_info(app_backend)
+                        reception_whatsapp = info.reception_whatsapp if info is not None else ""
+                        await app_sender.send(
+                            incoming.phone,
+                            TextMessage(text=technical_problem_text(reception_whatsapp)),
+                        )
+                    except Exception as send_exc:
+                        logger.error(
+                            "Error sending technical problem message for phone %s: %s",
+                            masked_phone,
+                            type(send_exc).__name__,
+                        )
 
     @app.get("/health")
     async def health() -> dict[str, str]:

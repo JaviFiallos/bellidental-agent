@@ -48,6 +48,9 @@ class ConversationStore:
         conversation.updated_at = datetime.now(timezone.utc)
         self._conversations[conversation.phone] = conversation
 
+    def discard(self, phone: str) -> None:
+        self._conversations.pop(phone, None)
+
 
 class ClinicInfoCache:
     """Caches the clinic /info for 10 minutes. Returns None when the backend fails."""
