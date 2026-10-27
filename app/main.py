@@ -3,21 +3,24 @@ from contextlib import asynccontextmanager, suppress
 import json
 import logging
 from typing import Any
+import anthropic
 import httpx
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import PlainTextResponse
 
 from app.backend.client import BackendClient
+from app.backend.models import BackendError
 from app.config import Settings
 from app.dialog import router
 from app.dialog.dependencies import Backend, Classifier, Sender
 from app.dialog.models import TextMessage
 from app.dialog.store import ConversationStore, ProcessedMessages, peek_clinic_info
 from app.messages.texts import technical_problem_text
+from app.nlu.anthropic_classifier import AnthropicClassifier
 from app.nlu.classifier import DisabledClassifier
 from app.nlu.openai_compatible import OpenAICompatibleClassifier
 from app.reminders import job as reminder_job
-from app.whatsapp.client import WhatsAppClient
+from app.whatsapp.client import WhatsAppClient, WhatsAppSendError
 from app.whatsapp.signature import is_valid_signature
 from app.whatsapp.webhook import parse_webhook
 
@@ -31,17 +34,30 @@ def mask_phone(phone: str) -> str:
     return "****"
 
 
-def build_classifier(settings: Settings, client: httpx.AsyncClient | None) -> Classifier:
-    """Uses the LLM only when LLM_API_KEY is set; otherwise the bot runs with the menu alone."""
+def build_classifier(
+    settings: Settings,
+    http_client: httpx.AsyncClient,
+    anthropic_client: anthropic.AsyncAnthropic,
+) -> Classifier:
+    """Uses the LLM only when LLM_API_KEY is set. Models starting with "claude-" use the Anthropic API."""
     if not settings.llm_api_key:
         return DisabledClassifier()
+    if settings.llm_model.startswith("claude-"):
+        return AnthropicClassifier(client=anthropic_client, model=settings.llm_model)
     return OpenAICompatibleClassifier(
         base_url=settings.llm_base_url,
         api_key=settings.llm_api_key,
         model=settings.llm_model,
         timeout=settings.llm_timeout_seconds,
-        client=client,
+        client=http_client,
     )
+
+
+def error_detail(exc: Exception) -> str:
+    """Errors that carry only status and codes are logged in full; any other error only by type (it may hold patient data)."""
+    if isinstance(exc, (WhatsAppSendError, BackendError)):
+        return f"{type(exc).__name__} {exc}"
+    return type(exc).__name__
 
 
 def create_app(
@@ -53,6 +69,7 @@ def create_app(
     classifier: Classifier | None = None,
 ) -> FastAPI:
     """Creates and configures the FastAPI application with injectable dependencies."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     app_settings = settings or Settings()
     app_store = store or ConversationStore(ttl_minutes=app_settings.conversation_ttl_minutes)
     app_processed_messages = processed_messages or ProcessedMessages()
@@ -75,10 +92,13 @@ def create_app(
         timeout=10.0,
     )
 
-    llm_http_client: httpx.AsyncClient | None = None
-    if app_settings.llm_api_key:
-        llm_http_client = httpx.AsyncClient(timeout=app_settings.llm_timeout_seconds)
-    app_classifier = classifier or build_classifier(app_settings, llm_http_client)
+    llm_http_client = httpx.AsyncClient(timeout=app_settings.llm_timeout_seconds)
+    llm_anthropic_client = anthropic.AsyncAnthropic(
+        api_key=app_settings.llm_api_key,
+        timeout=app_settings.llm_timeout_seconds,
+        max_retries=1,
+    )
+    app_classifier = classifier or build_classifier(app_settings, llm_http_client, llm_anthropic_client)
 
     phone_locks: dict[str, asyncio.Lock] = {}
 
@@ -101,8 +121,8 @@ def create_app(
                 await reminder_task
         if shared_http_client is not None:
             await shared_http_client.aclose()
-        if llm_http_client is not None:
-            await llm_http_client.aclose()
+        await llm_http_client.aclose()
+        await llm_anthropic_client.close()
 
     app = FastAPI(title="Bellidental WhatsApp Agent", lifespan=lifespan)
 
@@ -113,6 +133,7 @@ def create_app(
                 continue
             app_processed_messages.add(incoming.message_id)
 
+            masked_phone = mask_phone(incoming.phone)
             lock = get_lock(incoming.phone)
             async with lock:
                 try:
@@ -123,12 +144,18 @@ def create_app(
                     for outgoing in outgoing_messages:
                         await app_sender.send(incoming.phone, outgoing)
                     app_store.save(conversation)
+                    logger.info(
+                        "Message from %s kind=%s step=%s replies=%d",
+                        masked_phone,
+                        incoming.kind,
+                        conversation.step,
+                        len(outgoing_messages),
+                    )
                 except Exception as exc:
-                    masked_phone = mask_phone(incoming.phone)
                     logger.error(
                         "Error processing message for phone %s: %s",
                         masked_phone,
-                        type(exc).__name__,
+                        error_detail(exc),
                     )
                     app_store.discard(incoming.phone)
                     try:
@@ -142,7 +169,7 @@ def create_app(
                         logger.error(
                             "Error sending technical problem message for phone %s: %s",
                             masked_phone,
-                            type(send_exc).__name__,
+                            error_detail(send_exc),
                         )
 
     @app.get("/health")

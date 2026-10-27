@@ -1,8 +1,17 @@
+from datetime import datetime, timezone
+
+import anthropic
+import httpx
+
 from app.backend.models import BotPatient
+from app.config import Settings
 from app.dialog import router
 from app.dialog.models import ButtonsMessage, Conversation, IncomingMessage, ListMessage, TextMessage
+from app.main import build_classifier
 from app.messages.texts import URGENT_EMERGENCY_TEXT, single_price_text
+from app.nlu.anthropic_classifier import AnthropicClassifier
 from app.nlu.models import Intent, Interpretation
+from app.nlu.openai_compatible import OpenAICompatibleClassifier
 from tests.fakes import FakeBackend, FakeClassifier
 
 PHONE = "593987654321"
@@ -70,3 +79,33 @@ async def test_identity_step_never_calls_classifier() -> None:
     await router.handle(_text("1712345678"), conversation, backend, classifier)
 
     assert classifier.calls == []
+
+
+async def test_free_text_payment_intent_explains_and_hands_off() -> None:
+    backend = FakeBackend()
+    classifier = FakeClassifier()
+    classifier.result = Interpretation(intent=Intent.PAYMENT)
+    conversation = Conversation(phone=PHONE, consent_accepted=True)
+
+    reply = await router.handle(_text("quiero pagar"), conversation, backend, classifier)
+
+    assert len(reply) == 2
+    assert isinstance(reply[0], TextMessage)
+    assert "no recibimos pagos" in reply[0].text
+    assert conversation.handoff_until is not None
+    assert conversation.handoff_until > datetime.now(timezone.utc)
+
+
+def test_build_classifier_claude_model_selects_anthropic() -> None:
+    http_client = httpx.AsyncClient()
+    anthropic_client = anthropic.AsyncAnthropic(api_key="k")
+
+    claude = build_classifier(
+        Settings(llm_api_key="k", llm_model="claude-haiku-5-5"), http_client, anthropic_client
+    )
+    qwen = build_classifier(
+        Settings(llm_api_key="k", llm_model="qwen/qwen3-32b"), http_client, anthropic_client
+    )
+
+    assert isinstance(claude, AnthropicClassifier)
+    assert isinstance(qwen, OpenAICompatibleClassifier)

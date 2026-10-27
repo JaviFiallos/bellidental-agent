@@ -4,6 +4,15 @@ import httpx
 from app.dialog.models import ButtonsMessage, ListMessage, OutgoingMessage, TemplateMessage, TextMessage
 
 
+class WhatsAppSendError(Exception):
+    """Graph API rejected a message. Carries only the HTTP status and Meta's error code (never the body)."""
+
+    def __init__(self, status: int, code: int | None) -> None:
+        self.status = status
+        self.code = code
+        super().__init__(f"status={status} code={code}")
+
+
 class WhatsAppClient:
     """Client for sending WhatsApp messages via Meta Graph API."""
 
@@ -101,12 +110,21 @@ class WhatsAppClient:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(url, json=payload, headers=headers)
 
-        response.raise_for_status()
+        if response.is_error:
+            raise WhatsAppSendError(response.status_code, _meta_error_code(response))
         response_body = response.json()
         messages = response_body.get("messages", [])
         if not messages or "id" not in messages[0]:
             raise RuntimeError("Invalid response structure from WhatsApp Graph API")
         return str(messages[0]["id"])
+
+
+def _meta_error_code(response: httpx.Response) -> int | None:
+    try:
+        code = response.json().get("error", {}).get("code")
+    except (ValueError, AttributeError):
+        return None
+    return code if isinstance(code, int) else None
 
 
 def _build_template(message: TemplateMessage) -> dict[str, Any]:

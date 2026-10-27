@@ -155,3 +155,11 @@ def urgent_no_slots_text(phone: str) -> str:
 def urgent_slot_title(is_today: bool, time_text: str) -> str:
     day = "Hoy" if is_today else "Mañana"
     return f"{day} {time_text}"
+
+
+def payment_text(info: ClinicInfo) -> str:
+    methods = ", ".join(info.payment_methods)
+    return (
+        "Por WhatsApp no recibimos pagos. Puede pagar en la clínica "
+        f"({methods}); recepción le indica cómo."
+    )

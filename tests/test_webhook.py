@@ -8,6 +8,7 @@ from app.config import Settings
 from app.dialog.store import ConversationStore, ProcessedMessages, load_clinic_info
 from app.main import create_app
 from app.messages.texts import MENU_TEXT, technical_problem_text
+from app.whatsapp.client import WhatsAppSendError
 from app.whatsapp.webhook import parse_webhook
 from tests.fakes import FakeBackend, FakeSender
 
@@ -296,3 +297,46 @@ def test_webhook_handler_error_discards_conversation_and_notifies() -> None:
     phone_sent2, menu_msg = sender.sent[1]
     assert phone_sent2 == phone
     assert getattr(menu_msg, "text", "") == MENU_TEXT
+
+
+def test_webhook_send_error_logs_status_and_code_without_phone(caplog) -> None:
+    sender = FakeSender()
+    sender.error = WhatsAppSendError(401, 190)
+    secret = "secret-123"
+    app = create_app(
+        sender=sender,
+        backend=FakeBackend(),
+        store=ConversationStore(),
+        processed_messages=ProcessedMessages(),
+        settings=Settings(wa_app_secret=secret),
+    )
+    client = TestClient(app)
+    payload = {
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "field": "messages",
+                        "value": {
+                            "messages": [
+                                {
+                                    "from": "593987654321",
+                                    "id": "wamid.002",
+                                    "type": "text",
+                                    "text": {"body": "Hola"},
+                                }
+                            ]
+                        },
+                    }
+                ]
+            }
+        ]
+    }
+    raw_body = json.dumps(payload).encode("utf-8")
+    headers = {"X-Hub-Signature-256": _sign(raw_body, secret), "Content-Type": "application/json"}
+
+    with caplog.at_level("ERROR"):
+        client.post("/webhook", content=raw_body, headers=headers)
+
+    assert "status=401 code=190" in caplog.text
+    assert "593987654321" not in caplog.text
