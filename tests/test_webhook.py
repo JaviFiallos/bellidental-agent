@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import logging
 from fastapi.testclient import TestClient
 
 from app.config import Settings
@@ -340,3 +341,10 @@ def test_webhook_send_error_logs_status_and_code_without_phone(caplog) -> None:
 
     assert "status=401 code=190" in caplog.text
     assert "593987654321" not in caplog.text
+
+
+def test_webhook_app_created_http_client_logs_silenced() -> None:
+    create_app(sender=FakeSender(), backend=FakeBackend(), settings=Settings())
+
+    assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING
+    assert logging.getLogger("httpx2").getEffectiveLevel() >= logging.WARNING
