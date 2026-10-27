@@ -1,17 +1,17 @@
 from app.dialog import appointments, booking, urgent
 from app.dialog.dependencies import Backend
-from app.dialog.handoff import hand_off_from_backend
+from app.dialog.handoff import hand_off, hand_off_from_backend
 from app.dialog.hints import matches_text
 from app.dialog.menu import HOURS_ID, PRICES_ID, answer_menu, show_menu
 from app.dialog.models import Conversation, IncomingMessage, OutgoingMessage, Step, TextMessage
 from app.dialog.store import load_clinic_info
-from app.messages.texts import OFF_TOPIC_TEXT, single_price_text, technical_problem_text
+from app.messages.texts import OFF_TOPIC_TEXT, payment_text, single_price_text, technical_problem_text
 from app.nlu.classifier import Classifier
 from app.nlu.models import Intent, Interpretation
 
 MAX_RECENT_TEXTS = 2
 MAX_UNKNOWN_BEFORE_HANDOFF = 2
-FLOW_INTERRUPTS = frozenset({Intent.URGENT, Intent.HUMAN, Intent.CLINICAL, Intent.BALANCE})
+FLOW_INTERRUPTS = frozenset({Intent.URGENT, Intent.HUMAN, Intent.CLINICAL, Intent.BALANCE, Intent.PAYMENT})
 
 
 async def _interpret(
@@ -75,10 +75,19 @@ async def _act(interpretation: Interpretation, conversation: Conversation, backe
             return await appointments.start(conversation, backend, action=appointments.CONFIRM_ID)
         case Intent.URGENT:
             return await urgent.start(conversation, backend)
+        case Intent.PAYMENT:
+            return await _answer_payment(conversation, backend)
         case Intent.CLINICAL | Intent.BALANCE | Intent.HUMAN:
             return await hand_off_from_backend(conversation, backend)
         case _:
             return await show_menu(conversation)
+
+
+async def _answer_payment(conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:
+    info = await load_clinic_info(backend)
+    if info is None:
+        return hand_off(conversation, None)
+    return [TextMessage(text=payment_text(info)), *hand_off(conversation, info)]
 
 
 async def _answer_price(treatment: str | None, conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:

@@ -16,6 +16,7 @@ class Intent(StrEnum):
     CLINICAL = "CLINICAL"
     BALANCE = "BALANCE"
     HUMAN = "HUMAN"
+    PAYMENT = "PAYMENT"
     GREETING = "GREETING"
     OTHER = "OTHER"
 
