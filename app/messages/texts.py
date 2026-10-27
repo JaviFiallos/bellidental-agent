@@ -23,6 +23,7 @@ MENU_ROW_APPOINTMENTS = "Mis citas"
 MENU_ROW_HUMAN = "Hablar con recepción"
 
 PRICES_NOTE = "Valores referenciales; el valor definitivo lo da el odontólogo tras la valoración."
+CLINIC_TAGLINE = "Creamos bellas sonrisas"
 
 
 def _wa_link(reception_whatsapp: str) -> str:
@@ -46,12 +47,29 @@ def technical_problem_text(reception_whatsapp: str) -> str:
 BOOK_NO_PROFESSIONALS_TEXT = "Por ahora no hay profesionales disponibles para esa especialidad."
 
 
+def _local_phone(e164: str) -> str:
+    if e164.startswith("593") and len(e164) == 12:
+        national = "0" + e164[3:]
+        return f"{national[:3]} {national[3:6]} {national[6:]}"
+    return e164
+
+
 def handoff_text(info: ClinicInfo) -> str:
     hours = "\n".join(info.hours)
+    contact_lines = []
+    if info.address:
+        contact_lines.append(f"📍 {info.address}")
+    if info.reception_whatsapp:
+        contact_lines.append(f"📞 {_local_phone(info.reception_whatsapp)}")
+    contact_lines.append(f"🦷 {CLINIC_TAGLINE}")
+    contact = "\n".join(contact_lines)
+    closing = "Para volver al asistente, escriba *menu*."
+    if info.reception_whatsapp:
+        closing = f"Escriba a recepción: {_wa_link(info.reception_whatsapp)}\n{closing}"
     return (
-        f"Le atenderá recepción en el horario de atención:\n{hours}\n"
-        f"Escriba a recepción: {_wa_link(info.reception_whatsapp)}\n"
-        "Para volver al asistente, escriba *menu*."
+        f"Le atenderá recepción en el horario de atención:\n{hours}\n\n"
+        f"{contact}\n\n"
+        f"{closing}"
     )
 
 
