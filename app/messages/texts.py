@@ -43,11 +43,15 @@ def technical_problem_text(reception_whatsapp: str) -> str:
     return f"{base} Escriba a recepción: {_wa_link(reception_whatsapp)}"
 
 
+BOOK_NO_PROFESSIONALS_TEXT = "Por ahora no hay profesionales disponibles para esa especialidad."
+
+
 def handoff_text(info: ClinicInfo) -> str:
     hours = "\n".join(info.hours)
     return (
         f"Le atenderá recepción en el horario de atención:\n{hours}\n"
-        f"Escriba a recepción: {_wa_link(info.reception_whatsapp)}"
+        f"Escriba a recepción: {_wa_link(info.reception_whatsapp)}\n"
+        "Para volver al asistente, escriba *menu*."
     )
 
 

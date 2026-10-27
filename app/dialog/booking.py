@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from app.backend.models import BackendError
+from app.backend.models import BackendError, Specialty
 from app.dialog.dependencies import Backend
 from app.dialog.handoff import hand_off_from_backend
 from app.dialog.hints import filter_slots_by_period, matches_text, resolve_date_hint
@@ -29,6 +29,7 @@ from app.messages.texts import (
     BOOK_FIRST_AVAILABLE_TITLE,
     BOOK_LIMIT_TEXT,
     BOOK_NO_DAYS_TEXT,
+    BOOK_NO_PROFESSIONALS_TEXT,
     BOOK_NO_SLOTS_TEXT,
     BOOK_OVERLAP_TEXT,
     BOOK_PROFESSIONAL_TEXT,
@@ -93,14 +94,31 @@ async def show_specialties(conversation: Conversation, backend: Backend) -> list
     if len(specialties) == 1:
         return await _choose_specialty(conversation, backend, specialties[0].specialty_id, specialties[0].name)
     conversation.step = Step.BOOK_SPECIALTY
-    rows = [ListRow(id=f"{SPECIALTY_PREFIX}{item.specialty_id}", title=fit_length(item.name, MAX_ROW_TITLE)) for item in specialties[:MAX_ROWS]]
-    return [_list(BOOK_SPECIALTY_TEXT, rows)]
+    return [_list(BOOK_SPECIALTY_TEXT, _specialty_rows(specialties))]
+
+
+def _specialty_rows(specialties: list[Specialty]) -> list[ListRow]:
+    return [
+        ListRow(id=f"{SPECIALTY_PREFIX}{item.specialty_id}", title=fit_length(item.name, MAX_ROW_TITLE))
+        for item in specialties[:MAX_ROWS]
+    ]
+
+
+async def _ask_other_specialty(conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:
+    """The chosen specialty has no professionals: explains it and offers the rest, without handing off."""
+    unavailable_id = str(conversation.selection["specialty_id"])
+    conversation.selection.get("hints", {}).pop("specialty", None)
+    specialties = [item for item in await backend.get_specialties() if item.specialty_id != unavailable_id]
+    if not specialties:
+        return [TextMessage(text=BOOK_NO_PROFESSIONALS_TEXT), *await hand_off_from_backend(conversation, backend)]
+    conversation.step = Step.BOOK_SPECIALTY
+    return [TextMessage(text=BOOK_NO_PROFESSIONALS_TEXT), _list(BOOK_SPECIALTY_TEXT, _specialty_rows(specialties))]
 
 
 async def show_professionals(conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:
     professionals = await backend.get_professionals(str(conversation.selection["specialty_id"]))
     if not professionals:
-        return await hand_off_from_backend(conversation, backend)
+        return await _ask_other_specialty(conversation, backend)
     if len(professionals) == 1:
         only = professionals[0]
         return await _choose_professional(conversation, backend, only.professional_id, only.display_name)

@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from app.backend.models import BackendError, BotPatient
+from app.backend.models import BackendError, BotPatient, Specialty
 from app.dialog import router
-from app.dialog.models import ButtonsMessage, Conversation, IncomingMessage, ListMessage, TextMessage
+from app.dialog.models import ButtonsMessage, Conversation, IncomingMessage, ListMessage, Step, TextMessage
 from app.messages.texts import BOOK_LIMIT_TEXT, BOOK_OVERLAP_TEXT
 from tests.fakes import FakeBackend
 
@@ -86,3 +86,23 @@ async def test_booking_limit_reached_explains_and_derives() -> None:
     assert isinstance(result[0], TextMessage)
     assert result[0].text == BOOK_LIMIT_TEXT
     assert conversation.handoff_until is not None
+
+
+async def test_booking_specialty_without_professionals_offers_other_specialties() -> None:
+    backend = FakeBackend()
+    backend.specialties.append(
+        Specialty.model_validate({"specialtyId": 2, "name": "Endodoncia", "durationMinutes": 30})
+    )
+    backend.professionals = []
+    conversation = Conversation(phone=PHONE, consent_accepted=True)
+    await router.handle(_button("menu:book"), conversation, backend)
+    await router.handle(_button("ident:yes"), conversation, backend)
+
+    reply = await router.handle(_button("spec:1"), conversation, backend)
+
+    assert len(reply) == 2
+    assert isinstance(reply[0], TextMessage)
+    assert isinstance(reply[1], ListMessage)
+    assert all(row.id != "spec:1" for row in reply[1].sections[0].rows)
+    assert conversation.step == Step.BOOK_SPECIALTY
+    assert conversation.handoff_until is None
