@@ -114,6 +114,10 @@ CANCEL_YES_TITLE = "Sí, cancelar"
 CANCEL_NO_TITLE = "No"
 APPOINTMENT_CANCELLED_TEXT = "Su cita fue cancelada."
 APPOINTMENT_CONFIRMED_TEXT = "Gracias, su cita queda confirmada."
+APPOINTMENTS_OTHER_PERSON_TEXT = (
+    "Por privacidad solo puedo mostrar las citas de los pacientes registrados con este número. "
+    "La otra persona puede escribirnos desde su propio número o contactar a recepción."
+)
 REMINDER_CONFIRMED_TEXT = "¡Gracias! Su cita queda confirmada."
 REMINDER_TOO_LATE_TEXT = "Faltan menos de 2 horas para su cita; recepción le ayuda."
 APPOINTMENT_TOO_LATE_TEXT = "Faltan menos de 2 horas para su cita; para cambios, recepción le ayuda."

@@ -9,6 +9,7 @@ class Intent(StrEnum):
     HOURS = "HOURS"
     PRICE = "PRICE"
     BOOK = "BOOK"
+    APPOINTMENTS = "APPOINTMENTS"
     RESCHEDULE = "RESCHEDULE"
     CANCEL = "CANCEL"
     CONFIRM = "CONFIRM"
@@ -29,3 +30,4 @@ class Interpretation(BaseModel):
     treatment: str | None = Field(default=None, max_length=MAX_HINT_LENGTH)
     date_hint: str | None = Field(default=None, max_length=MAX_HINT_LENGTH)
     time_hint: str | None = Field(default=None, max_length=MAX_HINT_LENGTH)
+    other_person: bool = False

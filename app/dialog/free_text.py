@@ -67,12 +67,34 @@ async def _act(interpretation: Interpretation, conversation: Conversation, backe
             return await _answer_price(interpretation.treatment, conversation, backend)
         case Intent.BOOK:
             return await booking.start(conversation, backend, hints=_booking_hints(interpretation))
+        case Intent.APPOINTMENTS:
+            return await appointments.start(
+                conversation,
+                backend,
+                action=None,
+                other_person=interpretation.other_person,
+            )
         case Intent.RESCHEDULE:
-            return await appointments.start(conversation, backend, action=appointments.RESCHEDULE_ID)
+            return await appointments.start(
+                conversation,
+                backend,
+                action=appointments.RESCHEDULE_ID,
+                other_person=interpretation.other_person,
+            )
         case Intent.CANCEL:
-            return await appointments.start(conversation, backend, action=appointments.CANCEL_ID)
+            return await appointments.start(
+                conversation,
+                backend,
+                action=appointments.CANCEL_ID,
+                other_person=interpretation.other_person,
+            )
         case Intent.CONFIRM:
-            return await appointments.start(conversation, backend, action=appointments.CONFIRM_ID)
+            return await appointments.start(
+                conversation,
+                backend,
+                action=appointments.CONFIRM_ID,
+                other_person=interpretation.other_person,
+            )
         case Intent.URGENT:
             return await urgent.start(conversation, backend)
         case Intent.PAYMENT:

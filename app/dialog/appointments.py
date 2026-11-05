@@ -38,6 +38,7 @@ from app.messages.texts import (
     APPOINTMENTS_BOOK_TITLE,
     APPOINTMENTS_HOME_TITLE,
     APPOINTMENTS_LIST_TEXT,
+    APPOINTMENTS_OTHER_PERSON_TEXT,
     BOOK_CANCEL_TITLE,
     BOOK_CONFIRM_TITLE,
     BOOK_NO_DAYS_TEXT,
@@ -74,9 +75,22 @@ async def start(
     conversation: Conversation,
     backend: Backend,
     action: str | None = None,
+    other_person: bool = False,
 ) -> list[OutgoingMessage]:
     """Opens 'Mis citas'. With `action` (a button id such as RESCHEDULE_ID) and a single appointment, goes straight to it."""
-    return await start_identification(conversation, backend, then=APPOINTMENTS_FLOW, carry={"action": action})
+    if other_person:
+        conversation.patient_id = None
+        conversation.patient_name = None
+        patients = await backend.get_patients(conversation.phone)
+        if len(patients) <= 1:
+            return [TextMessage(text=APPOINTMENTS_OTHER_PERSON_TEXT), *await show_menu(conversation)]
+    return await start_identification(
+        conversation,
+        backend,
+        then=APPOINTMENTS_FLOW,
+        carry={"action": action},
+        confirm_single=False,
+    )
 
 
 async def show_appointments(conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:
