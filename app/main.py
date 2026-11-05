@@ -70,6 +70,8 @@ def create_app(
 ) -> FastAPI:
     """Creates and configures the FastAPI application with injectable dependencies."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    for noisy_logger_name in ("httpx", "httpx2"):
+        logging.getLogger(noisy_logger_name).setLevel(logging.WARNING)
     app_settings = settings or Settings()
     app_store = store or ConversationStore(ttl_minutes=app_settings.conversation_ttl_minutes)
     app_processed_messages = processed_messages or ProcessedMessages()

@@ -9,6 +9,7 @@ from app.backend.models import (
     ConsentStatus,
     DueReminder,
     Professional,
+    ProfessionalSchedule,
     PublicPrice,
     ReminderResponse,
     Slot,
@@ -87,6 +88,8 @@ class FakeBackend:
         self.failed_reminders: list[str] = []
         self.reminder_outcome = ReminderResponse(outcome="CONFIRMED", appointmentId="appt-1", patientId="pat-1")
         self.reminder_responses: list[dict[str, str]] = []
+        self.schedules: list[ProfessionalSchedule] = []
+        self.schedule_calls: list[dict[str, Any]] = []
 
     async def get_consent(self, phone: str) -> ConsentStatus:
         return self.consent_status
@@ -156,6 +159,23 @@ class FakeBackend:
 
     async def get_urgent_slots(self) -> UrgentSlots:
         return self.urgent_slots
+
+    async def get_schedule(
+        self,
+        from_day: date,
+        to_day: date,
+        specialty_id: str | None = None,
+        professional_id: str | None = None,
+    ) -> list[ProfessionalSchedule]:
+        self.schedule_calls.append(
+            {
+                "from_day": from_day,
+                "to_day": to_day,
+                "specialty_id": specialty_id,
+                "professional_id": professional_id,
+            }
+        )
+        return self.schedules
 
     async def get_appointments(self, phone: str, patient_id: str) -> list[Appointment]:
         return self.appointments

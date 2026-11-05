@@ -26,6 +26,12 @@ def matches_text(hint: str, candidate: str) -> bool:
     return normalized_hint in normalized_candidate or normalized_candidate in normalized_hint
 
 
+def matches_words(hint: str, candidate: str) -> bool:
+    """True when every word of the hint is a whole word of the candidate ('ana' matches 'Ana P.', not 'Mariana')."""
+    hint_words = set(_words(hint))
+    return bool(hint_words) and hint_words <= set(_words(candidate))
+
+
 def resolve_date_hint(hint: str | None, today: date, available: list[date]) -> date | None:
     """Maps a hint ('mañana', 'jueves', '23/10') to one of the available days, or None."""
     if not hint:
@@ -70,3 +76,7 @@ def _day_month(normalized: str, today: date) -> date | None:
         return date(today.year, int(match.group(2)), int(match.group(1)))
     except ValueError:
         return None
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"\w+", normalize_text(text))

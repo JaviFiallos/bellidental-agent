@@ -40,6 +40,7 @@ async def start_identification(
     backend: Backend,
     then: str,
     carry: dict[str, Any] | None = None,
+    confirm_single: bool = True,
 ) -> list[OutgoingMessage]:
     """Identifies the patient, then runs the continuation named `then` with the data in `carry`."""
     conversation.selection = {"then": then, "carry": carry or {}}
@@ -50,6 +51,13 @@ async def start_identification(
     if not patients:
         return [TextMessage(text=FIRST_APPOINTMENT_TEXT), *await hand_off_from_backend(conversation, backend)]
     if len(patients) == 1:
+        if not confirm_single:
+            return await _set_patient(
+                conversation,
+                backend,
+                patient_id=patients[0].patient_id,
+                patient_name=patients[0].display_name,
+            )
         conversation.selection["candidate_id"] = patients[0].patient_id
         conversation.selection["candidate_name"] = patients[0].display_name
         conversation.step = Step.IDENTIFY_CONFIRM

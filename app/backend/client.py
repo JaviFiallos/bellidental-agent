@@ -11,6 +11,7 @@ from app.backend.models import (
     ConsentStatus,
     DueReminder,
     Professional,
+    ProfessionalSchedule,
     ReminderResponse,
     Slot,
     Specialty,
@@ -147,6 +148,24 @@ class BackendClient:
         params["date"] = day.isoformat()
         slots_payload = await self._request("GET", "/api/v1/bot/availability", params=params)
         return [Slot.model_validate(item) for item in slots_payload]
+
+    async def get_schedule(
+        self,
+        from_day: date,
+        to_day: date,
+        specialty_id: str | None = None,
+        professional_id: str | None = None,
+    ) -> list[ProfessionalSchedule]:
+        params: dict[str, Any] = {
+            "from": from_day.isoformat(),
+            "to": to_day.isoformat(),
+        }
+        if specialty_id is not None:
+            params["specialtyId"] = specialty_id
+        if professional_id is not None:
+            params["professionalId"] = professional_id
+        payload = await self._request("GET", "/api/v1/bot/schedule", params=params)
+        return [ProfessionalSchedule.model_validate(item) for item in payload]
 
     async def book_appointment(
         self,
