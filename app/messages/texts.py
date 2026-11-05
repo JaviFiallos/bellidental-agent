@@ -2,8 +2,8 @@
 
 from datetime import date
 
-from app.backend.models import ClinicInfo, ProfessionalSchedule, PublicPrice
-from app.messages.dates import MONTHS_SHORT, WEEKDAYS_SHORT
+from app.backend.models import ClinicInfo, ProfessionalSchedule, PublicPrice, Shift
+from app.messages.dates import MONTHS, MONTHS_SHORT, WEEKDAYS, WEEKDAYS_SHORT
 
 UNSUPPORTED_MESSAGE = "Por ahora solo puedo leer mensajes de texto."
 
@@ -87,11 +87,17 @@ HOURS_GENERAL_TITLE = "Horario de atención"
 HOURS_BOOK_TITLE = "Ver horas libres"
 HOURS_NEXT_WEEK_TITLE = "Semana siguiente"
 HOURS_OPTIONS_TEXT = "¿Qué desea hacer?"
-HOURS_NO_SCHEDULE_TEXT = "No hay horarios registrados para esa especialidad en esas fechas."
+HOURS_NO_SCHEDULE_TEXT = "No hay horarios registrados en esas fechas."
+HOURS_MATCHES_TITLE = "Horarios"
+
+
+def shifts_text(shifts: list[Shift]) -> str:
+    """Backend shifts already come as "HH:mm": 08:00–12:00 · 14:00–18:00."""
+    return " · ".join(f"{shift.start_time}–{shift.end_time}" for shift in shifts)
 
 
 def weekly_schedule_text(
-    specialty_name: str,
+    title: str,
     from_day: date,
     to_day: date,
     schedules: list[ProfessionalSchedule],
@@ -106,21 +112,43 @@ def weekly_schedule_text(
             f"del {WEEKDAYS_SHORT[from_day.weekday()]} {from_day.day} de {MONTHS_SHORT[from_day.month - 1]}. "
             f"al {WEEKDAYS_SHORT[to_day.weekday()]} {to_day.day} de {MONTHS_SHORT[to_day.month - 1]}."
         )
-    header = f"*{specialty_name}* · {range_text}"
+    header = f"*{title}* · {range_text}"
 
     prof_blocks: list[str] = []
     for prof in schedules:
-        lines = [prof.professional_name]
+        lines: list[str] = []
+        if len(schedules) > 1 or title != prof.professional_name:
+            lines.append(prof.professional_name)
         for day in prof.days:
             day_label = f"{WEEKDAYS_SHORT[day.date.weekday()]} {day.date.day}"
             if day.shifts:
-                shifts_text = " · ".join(f"{str(s.start_time)[:5]}–{str(s.end_time)[:5]}" for s in day.shifts)
-                lines.append(f"{day_label}: {shifts_text}")
+                shifts_line = shifts_text(day.shifts)
+                lines.append(f"{day_label}: {shifts_line}")
             else:
                 lines.append(f"{day_label}: no atiende")
         prof_blocks.append("\n".join(lines))
 
     return f"{header}\n\n" + "\n\n".join(prof_blocks)
+
+
+def day_schedule_text(target_date: date, schedules: list[ProfessionalSchedule]) -> str:
+    date_text = f"{WEEKDAYS[target_date.weekday()]} {target_date.day} de {MONTHS[target_date.month - 1]}"
+    lines: list[str] = []
+    for prof in schedules:
+        for day in prof.days:
+            if day.date == target_date and day.shifts:
+                shifts_line = shifts_text(day.shifts)
+                lines.append(f"{prof.professional_name}: {shifts_line}")
+    prof_text = "\n".join(lines)
+    return f"Sí, el {date_text} atienden:\n{prof_text}"
+
+
+def day_no_schedule_text(target_date: date, info: ClinicInfo | None) -> str:
+    date_text = f"{WEEKDAYS[target_date.weekday()]} {target_date.day} de {MONTHS[target_date.month - 1]}"
+    base = f"El {date_text} no hay atención."
+    if info is not None:
+        return f"{base}\n\n{hours_text(info)}"
+    return base
 
 
 def prices_text(info: ClinicInfo) -> str:

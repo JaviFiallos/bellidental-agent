@@ -1,8 +1,8 @@
-from app.dialog import appointments, booking, urgent
+from app.dialog import appointments, booking, hours, urgent
 from app.dialog.dependencies import Backend
 from app.dialog.handoff import hand_off, hand_off_from_backend
 from app.dialog.hints import matches_text
-from app.dialog.menu import HOURS_ID, PRICES_ID, answer_menu, show_menu
+from app.dialog.menu import PRICES_ID, answer_menu, show_menu
 from app.dialog.models import Conversation, IncomingMessage, OutgoingMessage, Step, TextMessage
 from app.dialog.store import load_clinic_info
 from app.messages.texts import OFF_TOPIC_TEXT, payment_text, single_price_text, technical_problem_text
@@ -62,7 +62,7 @@ async def answer_free_text(
 async def _act(interpretation: Interpretation, conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:
     match interpretation.intent:
         case Intent.HOURS:
-            return await answer_menu(HOURS_ID, conversation, backend)
+            return await hours.answer_hours_text(interpretation, conversation, backend)
         case Intent.PRICE:
             return await _answer_price(interpretation.treatment, conversation, backend)
         case Intent.BOOK:

@@ -31,3 +31,4 @@ class Interpretation(BaseModel):
     date_hint: str | None = Field(default=None, max_length=MAX_HINT_LENGTH)
     time_hint: str | None = Field(default=None, max_length=MAX_HINT_LENGTH)
     other_person: bool = False
+    professional: str | None = Field(default=None, max_length=MAX_HINT_LENGTH)
