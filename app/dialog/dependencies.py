@@ -8,6 +8,7 @@ from app.backend.models import (
     ConsentStatus,
     DueReminder,
     Professional,
+    ProfessionalSchedule,
     ReminderResponse,
     Slot,
     Specialty,
@@ -41,6 +42,14 @@ class Backend(Protocol):
     async def get_slots(
         self, specialty_id: str, day: date, professional_id: str | None = None
     ) -> list[Slot]: ...
+
+    async def get_schedule(
+        self,
+        from_day: date,
+        to_day: date,
+        specialty_id: str | None = None,
+        professional_id: str | None = None,
+    ) -> list[ProfessionalSchedule]: ...
 
     async def book_appointment(
         self,

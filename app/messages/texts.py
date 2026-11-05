@@ -1,6 +1,9 @@
 """Patient-facing text constants in Spanish."""
 
-from app.backend.models import ClinicInfo, PublicPrice
+from datetime import date
+
+from app.backend.models import ClinicInfo, ProfessionalSchedule, PublicPrice
+from app.messages.dates import MONTHS_SHORT, WEEKDAYS_SHORT
 
 UNSUPPORTED_MESSAGE = "Por ahora solo puedo leer mensajes de texto."
 
@@ -76,6 +79,48 @@ def handoff_text(info: ClinicInfo) -> str:
 def hours_text(info: ClinicInfo) -> str:
     hours = "\n".join(info.hours)
     return f"Dirección: {info.address}\nHorario de atención:\n{hours}"
+
+
+HOURS_CHOOSE_TEXT = "¿Qué horario desea consultar?"
+HOURS_SECTION_TITLE = "Horarios"
+HOURS_GENERAL_TITLE = "Horario de atención"
+HOURS_BOOK_TITLE = "Ver horas libres"
+HOURS_NEXT_WEEK_TITLE = "Semana siguiente"
+HOURS_OPTIONS_TEXT = "¿Qué desea hacer?"
+HOURS_NO_SCHEDULE_TEXT = "No hay horarios registrados para esa especialidad en esas fechas."
+
+
+def weekly_schedule_text(
+    specialty_name: str,
+    from_day: date,
+    to_day: date,
+    schedules: list[ProfessionalSchedule],
+) -> str:
+    if from_day.month == to_day.month:
+        range_text = (
+            f"del {WEEKDAYS_SHORT[from_day.weekday()]} {from_day.day} "
+            f"al {WEEKDAYS_SHORT[to_day.weekday()]} {to_day.day} de {MONTHS_SHORT[to_day.month - 1]}."
+        )
+    else:
+        range_text = (
+            f"del {WEEKDAYS_SHORT[from_day.weekday()]} {from_day.day} de {MONTHS_SHORT[from_day.month - 1]}. "
+            f"al {WEEKDAYS_SHORT[to_day.weekday()]} {to_day.day} de {MONTHS_SHORT[to_day.month - 1]}."
+        )
+    header = f"*{specialty_name}* · {range_text}"
+
+    prof_blocks: list[str] = []
+    for prof in schedules:
+        lines = [prof.professional_name]
+        for day in prof.days:
+            day_label = f"{WEEKDAYS_SHORT[day.date.weekday()]} {day.date.day}"
+            if day.shifts:
+                shifts_text = " · ".join(f"{str(s.start_time)[:5]}–{str(s.end_time)[:5]}" for s in day.shifts)
+                lines.append(f"{day_label}: {shifts_text}")
+            else:
+                lines.append(f"{day_label}: no atiende")
+        prof_blocks.append("\n".join(lines))
+
+    return f"{header}\n\n" + "\n\n".join(prof_blocks)
 
 
 def prices_text(info: ClinicInfo) -> str:

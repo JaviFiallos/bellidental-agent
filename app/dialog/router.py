@@ -1,5 +1,5 @@
 from app.backend.models import BackendError
-from app.dialog import appointments, booking, free_text, identify, menu, reminder_reply, urgent
+from app.dialog import appointments, booking, free_text, hours, identify, menu, reminder_reply, urgent
 from app.dialog.consent import CONSENT_NO_ID, CONSENT_YES_ID, answer_consent, build_notice, is_accepted
 from app.dialog.dependencies import Backend, Classifier
 from app.dialog.hints import normalize_text
@@ -101,6 +101,8 @@ async def _route(
         return await booking.start(conversation, backend)
     if incoming.reply_id == menu.APPOINTMENTS_ID:
         return await appointments.start(conversation, backend)
+    if incoming.reply_id is not None and incoming.reply_id.startswith(hours.HOURS_PREFIX):
+        return await hours.answer_hours(incoming.reply_id, conversation, backend)
     if incoming.reply_id is not None and incoming.reply_id.startswith(MENU_PREFIX):
         return await answer_menu(incoming.reply_id, conversation, backend)
     if incoming.kind == "text" and not _is_menu_text(incoming):

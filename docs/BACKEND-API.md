@@ -36,6 +36,7 @@ de Docker; Caddy no la expone a internet.
 | `GET /availability?specialtyId=&professionalId=&date=` (profesional opcional) | `[{professionalId, professionalName, startAt, endAt}]`: máx. 10 |
 | `GET /urgent-slots` | `{specialtyId, noSlotsToday: bool, slots: [slot]}`: máx. 3, hoy o mañana |
 | `GET /appointments?phone=&patientId=` | `[{appointmentId, specialtyId, specialtyName, professionalId, professionalName, startAt, status}]`: solo las activas futuras |
+| `GET /schedule?from=&to=&specialtyId=&professionalId=` (filtros opcionales) | `[{professionalId, professionalName, days: [{date, shifts: [{startTime, endTime}]}]}]` |
 
 ## 016b — escrituras de agenda (solo tras *Confirmar*)
 | Método y ruta | Cuerpo | Respuesta |

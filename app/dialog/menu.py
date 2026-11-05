@@ -1,3 +1,4 @@
+from app.dialog import hours
 from app.dialog.dependencies import Backend
 from app.dialog.handoff import hand_off, hand_off_from_backend
 from app.dialog.models import (
@@ -19,7 +20,6 @@ from app.messages.texts import (
     MENU_ROW_PRICES,
     MENU_SECTION_TITLE,
     MENU_TEXT,
-    hours_text,
     prices_text,
     technical_problem_text,
 )
@@ -58,10 +58,7 @@ async def show_menu(conversation: Conversation) -> list[OutgoingMessage]:
 
 async def answer_menu(reply_id: str, conversation: Conversation, backend: Backend) -> list[OutgoingMessage]:
     if reply_id == HOURS_ID:
-        info = await load_clinic_info(backend)
-        if info is None:
-            return [TextMessage(text=technical_problem_text(""))]
-        return [TextMessage(text=hours_text(info)), *await show_menu(conversation)]
+        return await hours.show_hours_menu(conversation, backend)
     if reply_id == PRICES_ID:
         info = await load_clinic_info(backend)
         if info is None:

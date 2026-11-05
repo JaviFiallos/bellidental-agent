@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -107,3 +107,25 @@ class ReminderResponse(BaseModel):
     outcome: str
     appointment_id: str = Field(alias="appointmentId")
     patient_id: str = Field(alias="patientId")
+
+
+class Shift(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    start_time: str = Field(alias="startTime")
+    end_time: str = Field(alias="endTime")
+
+
+class ScheduleDay(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    date: date
+    shifts: list[Shift] = Field(default_factory=list)
+
+
+class ProfessionalSchedule(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, coerce_numbers_to_str=True)
+
+    professional_id: str = Field(alias="professionalId")
+    professional_name: str = Field(alias="professionalName")
+    days: list[ScheduleDay] = Field(default_factory=list)
